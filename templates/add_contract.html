@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Add Contract{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Add New Contract</h2>
+    <form method="POST" action="/add-contract">
+        <div class="mb-3">
+            <label class="form-label">Contract Name</label>
+            <input type="text" class="form-control" name="contract_name" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Supplier</label>
+            <select class="form-control" name="supplier_id" required>
+                {% for supplier in suppliers %}
+                <option value="{{ supplier[0] }}">{{ supplier[1] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Start Date</label>
+            <input type="date" class="form-control" name="start_date" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">End Date</label>
+            <input type="date" class="form-control" name="end_date" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Total Contract Value (£)</label>
+            <input type="number" step="0.01" class="form-control" name="value" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Payment Frequency</label>
+            <select class="form-control" name="payment_frequency" required>
+                <option value="Monthly">Monthly</option>
+                <option value="Quarterly">Quarterly</option>
+                <option value="Yearly">Yearly</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Contract Terms</label>
+            <textarea class="form-control" name="terms"></textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Add Contract</button>
+    </form>
+</div>
+{% endblock %}

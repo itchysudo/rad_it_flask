@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Add Purchase Order{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Add New Purchase Order</h2>
+    <form method="POST" action="/add-po">
+        <div class="mb-3">
+            <label class="form-label">Attach to a contract or create a new one?</label>
+            <select class="form-control" id="contract_option" name="contract_option" required onchange="toggleContractFields()">
+                <option value="existing">Attach to Existing Contract</option>
+                <option value="new">Create New Contract</option>
+                <option value="none">One-Off PO (No Contract)</option>
+            </select>
+        </div>
+
+        <!-- Existing Contracts Dropdown -->
+        <div class="mb-3" id="existing_contract_section">
+            <label class="form-label">Select Existing Contract</label>
+            <select class="form-control" name="contract_id">
+                <option value="">-- Select Contract --</option>
+                {% for contract in contracts %}
+                <option value="{{ contract[0] }}">{{ contract[1] }} ({{ contract[2] }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- New Contract Fields (Hidden by Default) -->
+        <div id="new_contract_section" style="display: none;">
+            <h4>Create New Contract</h4>
+            <div class="mb-3">
+                <label class="form-label">Contract Name</label>
+                <input type="text" class="form-control" name="new_contract_name">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Supplier</label>
+                <select class="form-control" name="new_supplier_id">
+                    {% for supplier in suppliers %}
+                    <option value="{{ supplier[0] }}">{{ supplier[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Start Date</label>
+                <input type="date" class="form-control" name="new_start_date">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">End Date</label>
+                <input type="date" class="form-control" name="new_end_date">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Total Contract Value (£)</label>
+                <input type="number" step="0.01" class="form-control" name="new_value">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Payment Frequency</label>
+                <select class="form-control" name="new_payment_frequency">
+                    <option value="Monthly">Monthly</option>
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Yearly">Yearly</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- PO Details -->
+        <div class="mb-3">
+            <label class="form-label">PO Number</label>
+            <input type="text" class="form-control" name="po_number" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">PO Date</label>
+            <input type="date" class="form-control" name="po_date" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Amount (£)</label>
+            <input type="number" step="0.01" class="form-control" name="amount" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Requester</label>
+            <input type="text" class="form-control" name="requester" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Approver</label>
+            <input type="text" class="form-control" name="approver">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Status</label>
+            <select class="form-control" name="status" required>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Completed">Completed</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-success">Add Purchase Order</button>
+    </form>
+</div>
+
+<script>
+    function toggleContractFields() {
+        var option = document.getElementById("contract_option").value;
+        document.getElementById("existing_contract_section").style.display = (option === "existing") ? "block" : "none";
+        document.getElementById("new_contract_section").style.display = (option === "new") ? "block" : "none";
+    }
+</script>
+{% endblock %}
