@@ -10,7 +10,7 @@ def get_db_connection():
     return psycopg2.connect(
         dbname="RAD_IT",
         user="postgres",
-        password="Gr33kG0d",  # Need to secure this
+        password="",  # Need to secure this
         host="localhost"
     )
 
