@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Purchase Order{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Edit Purchase Order</h2>
+    <form method="POST" action="{{ url_for('edit_po', po_id=po['po_id']) }}">
+        <div class="mb-3">
+            <label class="form-label">PO Number</label>
+            <input type="text" class="form-control" name="po_number" value="{{ po['po_number'] }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Contract ID</label>
+            <input type="text" class="form-control" name="contract_id" value="{{ po['contract_id'] or '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">PO Date</label>
+            <input type="date" class="form-control" name="po_date" value="{{ po['po_date'] }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Amount (£)</label>
+            <input type="number" step="0.01" class="form-control" name="amount" value="{{ po['amount'] }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Requester</label>
+            <input type="text" class="form-control" name="requester" value="{{ po['requester'] }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Approver</label>
+            <input type="text" class="form-control" name="approver" value="{{ po['approver'] or '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Status</label>
+            <select class="form-control" name="status" required>
+                <option value="Pending" {% if po['status'] == "Pending" %}selected{% endif %}>Pending</option>
+                <option value="Approved" {% if po['status'] == "Approved" %}selected{% endif %}>Approved</option>
+                <option value="Completed" {% if po['status'] == "Completed" %}selected{% endif %}>Completed</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-success">Update Purchase Order</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,11 +1,68 @@
 {% extends "base.html" %}
 
-{% block title %}Home - RAD IT Finance{% endblock %}
+{% block title %}Dashboard - RAD IT BM{% endblock %}
 
 {% block content %}
-<div class="text-center">
-    <h1 class="mb-4">Welcome to RAD IT Budget</h1>
-    <p class="lead">Manage contracts, suppliers, and purchase orders.</p>
-    <a href="#" class="btn btn-primary">Get Started</a>
+<div class="container">
+    <!-- Hero Section -->
+    <div class="jumbotron bg-light p-4 rounded mb-4">
+        <h1 class="display-5">Welcome to RAD IT Business Management</h1>
+        <p class="lead">Manage your contracts, suppliers, and purchase orders.</p>
+    </div>
+
+    <!-- Dashboard Cards -->
+    <div class="row mb-4">
+        <!-- Total Contracts Card -->
+        <div class="col-md-3">
+            <a href="{{ url_for('view_contracts') }}" class="text-decoration-none">
+                <div class="card text-white bg-primary mb-3">
+                    <div class="card-header">Contracts</div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ total_contracts or '0' }}</h5>
+                        <p class="card-text">Active contracts</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Total Suppliers Card -->
+        <div class="col-md-3">
+            <a href="{{ url_for('view_suppliers') }}" class="text-decoration-none">
+                <div class="card text-white bg-success mb-3">
+                    <div class="card-header">Suppliers</div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ total_suppliers or '0' }}</h5>
+                        <p class="card-text">Registered suppliers</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Total Purchase Orders Card -->
+        <div class="col-md-3">
+            <a href="{{ url_for('view_purchase_orders') }}" class="text-decoration-none">
+                <div class="card text-white bg-warning mb-3">
+                    <div class="card-header">Purchase Orders</div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ total_pos or '0' }}</h5>
+                        <p class="card-text">POs issued</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Upcoming Renewals Card -->
+        <div class="col-md-3">
+            <a href="{{ url_for('view_contracts') }}" class="text-decoration-none">
+                <div class="card text-white bg-danger mb-3">
+                    <div class="card-header">Renewals</div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ upcoming_renewals or '0' }}</h5>
+                        <p class="card-text">Contracts expiring soon</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
 </div>
 {% endblock %}
