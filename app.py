@@ -207,6 +207,44 @@ def edit_supplier(supplier_id):
     }
 
     return render_template('edit_supplier.html', supplier=supplier)
+    
+  
+#Add contract  
+@app.route('/add-contract', methods=['GET', 'POST'])
+def add_contract():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Fetch suppliers to display in the dropdown
+    cur.execute("SELECT supplier_id, name FROM suppliers ORDER BY name")
+    suppliers = cur.fetchall()
+
+    if request.method == 'POST':
+        contract_name = request.form['contract_name']
+        supplier_id = request.form['supplier_id']
+        start_date = request.form['start_date']
+        end_date = request.form['end_date']
+        value = request.form['value']
+        payment_frequency = request.form['payment_frequency']
+        terms = request.form.get('terms', '')
+
+        # Insert into the contracts table
+        cur.execute("""
+            INSERT INTO contracts (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms))
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        flash('✅ Contract added successfully!', 'success')
+        return redirect(url_for('view_contracts'))
+
+    cur.close()
+    conn.close()
+    return render_template('add_contract.html', suppliers=suppliers)
+
 
 # Delete Supplier
 @app.route('/delete-supplier/<int:supplier_id>')
