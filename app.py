@@ -6,7 +6,7 @@ from dotenv import load_dotenv  # Ensure this is imported if using a .env file
 # Load environment variables from .env file (if using .env)
 load_dotenv()
 
-app = Flask(__name__, template_folder="templates")  # ✅ Make sure this is before any @app.route()
+app = Flask(__name__, template_folder="templates")  # Make sure this is before any @app.route()
 app.secret_key = "buVJyxLGE2GRjV"
 
 # Database connection function
@@ -15,10 +15,10 @@ def get_db_connection():
         conn = psycopg2.connect(
             dbname="RAD_IT",
             user="postgres",
-            password=os.getenv("DB_PASSWORD"),  # ✅ Get password from .env file
+            password=os.getenv("DB_PASSWORD"),  # Get password from .env file
             host="localhost"
         )
-        print("✅ DEBUG: Database connected successfully")
+        print("DEBUG: Database connected successfully")
         return conn
     except Exception as e:
         print(f"❌ ERROR: Failed to connect to the database - {e}")
@@ -36,7 +36,7 @@ def home():
     cur = conn.cursor()
 
     # Debugging Message
-    print("✅ DEBUG: Fetching homepage statistics...")
+    print("DEBUG: Fetching homepage statistics...")
 
     # Fetch total contracts
     cur.execute("SELECT COUNT(*) FROM contracts")
@@ -57,10 +57,10 @@ def home():
     """)
     upcoming_renewals = cur.fetchone()[0] or 0
 
-    print(f"✅ DEBUG: Total Contracts: {total_contracts}")
-    print(f"✅ DEBUG: Total Suppliers: {total_suppliers}")
-    print(f"✅ DEBUG: Total Purchase Orders: {total_pos}")
-    print(f"✅ DEBUG: Upcoming Renewals: {upcoming_renewals}")
+    print(f"DEBUG: Total Contracts: {total_contracts}")
+    print(f"DEBUG: Total Suppliers: {total_suppliers}")
+    print(f"DEBUG: Total Purchase Orders: {total_pos}")
+    print(f"DEBUG: Upcoming Renewals: {upcoming_renewals}")
 
     cur.close()
     conn.close()
@@ -119,8 +119,8 @@ def view_supplier(supplier_id):
         "name": row[1],         
         "contact_name": row[2], 
         "email": row[3],        
-        "office_phone": row[4],  # ✅ FIXED - Now correctly retrieves Office Phone
-        "mobile": row[5],       # ✅ FIXED - Now correctly retrieves Mobile
+        "office_phone": row[4],  #
+        "mobile": row[5],       # 
         "address": row[6],      
     }
 
@@ -133,27 +133,27 @@ def add_supplier():
         name = request.form['name']
         contact_name = request.form.get('contact_name', '')
         email = request.form.get('email', '')
-        office_phone = request.form.get('office_phone', '')  # ✅ Fixed
-        mobile = request.form.get('mobile', '')  # ✅ Fixed
+        office_phone = request.form.get('office_phone', '')
+        mobile = request.form.get('mobile', '')
         address = request.form.get('address', '')
 
-        # ✅ Debugging output
+        # Debugging output
         print(f"DEBUG: Name={name}, Contact={contact_name}, Email={email}, Office={office_phone}, Mobile={mobile}, Address={address}")
 
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # ✅ Ensure correct number of placeholders
+        # Ensure correct number of placeholders
         cur.execute("""
             INSERT INTO suppliers (name, contact_name, email, office_phone, mobile, address) 
             VALUES (%s, %s, %s, %s, %s, %s)
-        """, (name, contact_name, email, office_phone, mobile, address))  # ✅ Fixed
+        """, (name, contact_name, email, office_phone, mobile, address))
 
         conn.commit()
         cur.close()
         conn.close()
 
-        flash('✅ Supplier added successfully!', 'success')
+        flash('Supplier added successfully!', 'success')
         return redirect(url_for('view_suppliers'))
 
     return render_template('add_supplier.html')
@@ -182,7 +182,7 @@ def edit_supplier(supplier_id):
         cur.close()
         conn.close()
 
-        flash('✅ Supplier updated successfully!', 'success')
+        flash('Supplier updated successfully!', 'success')
         return redirect(url_for('view_suppliers'))
 
     # Fetch supplier details
@@ -195,7 +195,7 @@ def edit_supplier(supplier_id):
         flash("⚠️ Supplier not found!", "warning")
         return redirect(url_for('view_suppliers'))
 
-    # ✅ Convert Tuple to Dictionary
+    # Convert Tuple to Dictionary
     supplier = {
         "supplier_id": row[0],  
         "name": row[1],         
