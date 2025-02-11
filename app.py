@@ -98,6 +98,33 @@ def view_contracts():
     cur.close()
     conn.close()
     return render_template('contracts.html', contracts=contracts)
+    
+#View Supplier
+@app.route('/view-supplier/<int:supplier_id>')
+def view_supplier(supplier_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT supplier_id, name, contact_name, email, office_phone, mobile, address FROM suppliers WHERE supplier_id = %s", (supplier_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not row:
+        flash("⚠️ Supplier not found!", "warning")
+        return redirect(url_for('view_suppliers'))
+
+    # Ensure correct field mapping
+    supplier = {
+        "supplier_id": row[0],  
+        "name": row[1],         
+        "contact_name": row[2], 
+        "email": row[3],        
+        "office_phone": row[4],  # ✅ FIXED - Now correctly retrieves Office Phone
+        "mobile": row[5],       # ✅ FIXED - Now correctly retrieves Mobile
+        "address": row[6],      
+    }
+
+    return render_template('view_supplier.html', supplier=supplier)
 
 # Add Supplier
 @app.route('/add-supplier', methods=['GET', 'POST'])
@@ -106,15 +133,22 @@ def add_supplier():
         name = request.form['name']
         contact_name = request.form.get('contact_name', '')
         email = request.form.get('email', '')
-        phone = request.form.get('phone', '')
+        office_phone = request.form.get('office_phone', '')  # ✅ Fixed
+        mobile = request.form.get('mobile', '')  # ✅ Fixed
         address = request.form.get('address', '')
+
+        # ✅ Debugging output
+        print(f"DEBUG: Name={name}, Contact={contact_name}, Email={email}, Office={office_phone}, Mobile={mobile}, Address={address}")
 
         conn = get_db_connection()
         cur = conn.cursor()
+
+        # ✅ Ensure correct number of placeholders
         cur.execute("""
-            INSERT INTO suppliers (name, contact_name, email, phone, address) 
-            VALUES (%s, %s, %s, %s, %s)
-        """, (name, contact_name, email, phone, address))
+            INSERT INTO suppliers (name, contact_name, email, office_phone, mobile, address) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (name, contact_name, email, office_phone, mobile, address))  # ✅ Fixed
+
         conn.commit()
         cur.close()
         conn.close()
@@ -124,40 +158,54 @@ def add_supplier():
 
     return render_template('add_supplier.html')
 
+
 # Edit Supplier
 @app.route('/edit-supplier/<int:supplier_id>', methods=['GET', 'POST'])
 def edit_supplier(supplier_id):
     conn = get_db_connection()
     cur = conn.cursor()
-    
+
     if request.method == 'POST':
         name = request.form['name']
         contact_name = request.form.get('contact_name', '')
         email = request.form.get('email', '')
-        phone = request.form.get('phone', '')
+        office_phone = request.form.get('office_phone', '')
+        mobile = request.form.get('mobile', '')
         address = request.form.get('address', '')
 
         cur.execute("""
             UPDATE suppliers 
-            SET name = %s, contact_name = %s, email = %s, phone = %s, address = %s
+            SET name = %s, contact_name = %s, email = %s, office_phone = %s, mobile = %s, address = %s
             WHERE supplier_id = %s
-        """, (name, contact_name, email, phone, address, supplier_id))
+        """, (name, contact_name, email, office_phone, mobile, address, supplier_id))
         conn.commit()
         cur.close()
         conn.close()
-        
+
         flash('✅ Supplier updated successfully!', 'success')
         return redirect(url_for('view_suppliers'))
-    
-    cur.execute("SELECT * FROM suppliers WHERE supplier_id = %s", (supplier_id,))
-    supplier = cur.fetchone()
+
+    # Fetch supplier details
+    cur.execute("SELECT supplier_id, name, contact_name, email, office_phone, mobile, address FROM suppliers WHERE supplier_id = %s", (supplier_id,))
+    row = cur.fetchone()
     cur.close()
     conn.close()
-    
-    if not supplier:
+
+    if not row:
         flash("⚠️ Supplier not found!", "warning")
         return redirect(url_for('view_suppliers'))
-    
+
+    # ✅ Convert Tuple to Dictionary
+    supplier = {
+        "supplier_id": row[0],  
+        "name": row[1],         
+        "contact_name": row[2], 
+        "email": row[3],        
+        "office_phone": row[4],  
+        "mobile": row[5],       
+        "address": row[6],      
+    }
+
     return render_template('edit_supplier.html', supplier=supplier)
 
 # Delete Supplier
