@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Contacts{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>Contacts for {{ supplier["name"] }}</h2>
+
+    <!-- Add New Contact Button -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Contacts</h4>
+        <a href="{{ url_for('add_supplier_contact', supplier_id=supplier['supplier_id']) }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Add Contact
+        </a>
+    </div>
+
+    <table class="table table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Office Phone</th>
+                <th>Mobile</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contact in contacts %}
+            <tr>
+                <td>{{ contact["contact_name"] }}</td>
+                <td><a href="mailto:{{ contact["email"] }}">{{ contact["email"] or "N/A" }}</a></td>
+                <td><a href="tel:{{ contact["office_phone"] }}">{{ contact["office_phone"] or "N/A" }}</a></td>
+                <td><a href="tel:{{ contact["mobile"] }}">{{ contact["mobile"] or "N/A" }}</a></td>
+                <td>
+                    <form method="POST" action="{{ url_for('set_primary_contact', contact_id=contact['contact_id']) }}">
+                        <button type="submit" class="btn btn-sm btn-warning">Set as Primary</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('delete_contact', contact_id=contact['contact_id']) }}" onsubmit="return confirm('Are you sure you want to delete this contact?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ url_for('view_supplier', supplier_id=supplier['supplier_id']) }}" class="btn btn-secondary mt-3">Back to Supplier</a>
+</div>
+{% endblock %}
+

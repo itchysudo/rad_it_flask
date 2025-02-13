@@ -76,10 +76,19 @@ def home():
 def view_suppliers():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT supplier_id, name, contact_name, email, phone, address FROM suppliers ORDER BY name")
+
+    # Fetch all suppliers with their primary contact (if available)
+    cur.execute("""
+        SELECT s.supplier_id, s.name, c.contact_name 
+        FROM suppliers s
+        LEFT JOIN supplier_contacts c ON s.primary_contact_id = c.contact_id
+        ORDER BY s.supplier_id
+    """)
     suppliers = cur.fetchall()
+
     cur.close()
     conn.close()
+
     return render_template('suppliers.html', suppliers=suppliers)
 
 # View Contracts
@@ -104,27 +113,163 @@ def view_contracts():
 def view_supplier(supplier_id):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT supplier_id, name, contact_name, email, office_phone, mobile, address FROM suppliers WHERE supplier_id = %s", (supplier_id,))
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
 
-    if not row:
+    # Fetch supplier details
+    cur.execute("SELECT supplier_id, name FROM suppliers WHERE supplier_id = %s", (supplier_id,))
+    supplier_row = cur.fetchone()
+
+    # Convert tuple to dictionary
+    if supplier_row:
+        supplier = {"supplier_id": supplier_row[0], "name": supplier_row[1]}
+    else:
         flash("⚠️ Supplier not found!", "warning")
         return redirect(url_for('view_suppliers'))
 
-    # Ensure correct field mapping
-    supplier = {
-        "supplier_id": row[0],  
-        "name": row[1],         
-        "contact_name": row[2], 
-        "email": row[3],        
-        "office_phone": row[4],  #
-        "mobile": row[5],       # 
-        "address": row[6],      
-    }
+    # Fetch primary contact details
+    cur.execute("""
+        SELECT contact_name, email, office_phone, mobile 
+        FROM supplier_contacts 
+        WHERE contact_id = (SELECT primary_contact_id FROM suppliers WHERE supplier_id = %s)
+    """, (supplier_id,))
+    primary_contact_row = cur.fetchone()
 
-    return render_template('view_supplier.html', supplier=supplier)
+    primary_contact = (
+        {"contact_name": primary_contact_row[0], "email": primary_contact_row[1], 
+         "office_phone": primary_contact_row[2], "mobile": primary_contact_row[3]}
+        if primary_contact_row else None
+    )
+
+    # Fetch all contacts associated with this supplier
+    cur.execute("""
+        SELECT contact_id, supplier_id, contact_name, email, office_phone, mobile
+        FROM supplier_contacts
+        WHERE supplier_id = %s
+    """, (supplier_id,))
+    contacts = [
+        {"contact_id": row[0], "supplier_id": row[1], "contact_name": row[2], 
+         "email": row[3], "office_phone": row[4], "mobile": row[5]} 
+        for row in cur.fetchall()
+    ]
+
+    cur.close()
+    conn.close()
+
+    return render_template('view_supplier.html', supplier=supplier, primary_contact=primary_contact, contacts=contacts)
+
+# view_suplier_contacts
+@app.route('/view-supplier-contacts/<int:supplier_id>')
+def view_supplier_contacts(supplier_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Fetch supplier details
+    cur.execute("SELECT supplier_id, name FROM suppliers WHERE supplier_id = %s", (supplier_id,))
+    supplier_row = cur.fetchone()
+
+    if not supplier_row:
+        flash("⚠️ Supplier not found!", "warning")
+        return redirect(url_for('view_suppliers'))
+
+    # Convert tuple to dictionary
+    supplier = {"supplier_id": supplier_row[0], "name": supplier_row[1]}
+
+    # Fetch all contacts associated with this supplier
+    cur.execute("""
+        SELECT contact_id, contact_name, email, office_phone, mobile 
+        FROM supplier_contacts WHERE supplier_id = %s
+    """, (supplier_id,))
+    contacts = [
+        {"contact_id": row[0], "contact_name": row[1], "email": row[2], "office_phone": row[3], "mobile": row[4]}
+        for row in cur.fetchall()
+    ]
+
+    cur.close()
+    conn.close()
+
+    return render_template('view_supplier_contacts.html', supplier=supplier, contacts=contacts)
+
+
+#Add new contact
+@app.route('/add-supplier-contact/<int:supplier_id>', methods=['POST'])
+def add_supplier_contact(supplier_id):
+    if request.method == 'POST':
+        contact_name = request.form['contact_name']
+        email = request.form['email']
+        office_phone = request.form.get('office_phone', None)
+        mobile = request.form.get('mobile', None)
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Insert the new contact into supplier_contacts table
+        cur.execute("""
+            INSERT INTO supplier_contacts (supplier_id, contact_name, email, office_phone, mobile)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (supplier_id, contact_name, email, office_phone, mobile))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        flash('✅ Contact added successfully!', 'success')
+        return redirect(url_for('view_supplier', supplier_id=supplier_id))
+        
+        
+#Delete contact
+@app.route('/delete-contact/<int:contact_id>', methods=['POST'])
+def delete_contact(contact_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Find supplier_id before deleting so we can redirect correctly
+    cur.execute("SELECT supplier_id FROM supplier_contacts WHERE contact_id = %s", (contact_id,))
+    supplier = cur.fetchone()
+
+    if not supplier:
+        flash("⚠️ Contact not found!", "warning")
+        return redirect(url_for('view_suppliers'))
+
+    supplier_id = supplier[0]
+
+    # Delete the contact
+    cur.execute("DELETE FROM supplier_contacts WHERE contact_id = %s", (contact_id,))
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    flash("✅ Contact deleted successfully!", "success")
+    return redirect(url_for('view_supplier', supplier_id=supplier_id))
+    
+# Set primary  contact    
+@app.route('/set-primary-contact/<int:contact_id>', methods=['POST'])
+def set_primary_contact(contact_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Get supplier_id of the contact
+    cur.execute("SELECT supplier_id FROM supplier_contacts WHERE contact_id = %s", (contact_id,))
+    supplier = cur.fetchone()
+
+    if not supplier:
+        flash("⚠️ Contact not found!", "warning")
+        return redirect(url_for('view_suppliers'))
+
+    supplier_id = supplier[0]
+
+    # Update the supplier's primary contact
+    cur.execute("UPDATE suppliers SET primary_contact_id = %s WHERE supplier_id = %s", (contact_id, supplier_id))
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    flash("✅ Primary contact updated successfully!", "success")
+    return redirect(url_for('view_supplier', supplier_id=supplier_id))
+
+
+
+
 
 # Add Supplier
 @app.route('/add-supplier', methods=['GET', 'POST'])
