@@ -79,17 +79,33 @@ def view_suppliers():
 
     # Fetch all suppliers with their primary contact (if available)
     cur.execute("""
-        SELECT s.supplier_id, s.name, c.contact_name 
+        SELECT s.supplier_id, s.name, s.primary_contact_id, c.email, c.office_phone, s.address
         FROM suppliers s
         LEFT JOIN supplier_contacts c ON s.primary_contact_id = c.contact_id
         ORDER BY s.supplier_id
     """)
     suppliers = cur.fetchall()
 
+    # Fetch all contacts for each supplier
+    cur.execute("""
+        SELECT supplier_id, contact_id, contact_name 
+        FROM supplier_contacts
+    """)
+    all_contacts = cur.fetchall()
+
+    # Organize contacts in a dictionary {supplier_id: [(contact_id, contact_name)]}
+    supplier_contacts = {}
+    for contact in all_contacts:
+        supplier_id = contact[0]
+        if supplier_id not in supplier_contacts:
+            supplier_contacts[supplier_id] = []
+        supplier_contacts[supplier_id].append((contact[1], contact[2]))
+
     cur.close()
     conn.close()
 
-    return render_template('suppliers.html', suppliers=suppliers)
+    return render_template('suppliers.html', suppliers=suppliers, supplier_contacts=supplier_contacts)
+
 
 # View Contracts
 @app.route('/contracts')
@@ -156,7 +172,7 @@ def view_supplier(supplier_id):
 
     return render_template('view_supplier.html', supplier=supplier, primary_contact=primary_contact, contacts=contacts)
 
-# view_suplier_contacts
+# view_supplier_contacts
 @app.route('/view-supplier-contacts/<int:supplier_id>')
 def view_supplier_contacts(supplier_id):
     conn = get_db_connection()
@@ -188,32 +204,57 @@ def view_supplier_contacts(supplier_id):
 
     return render_template('view_supplier_contacts.html', supplier=supplier, contacts=contacts)
 
+    # Fetch supplier details
+    cur.execute("SELECT supplier_id, name FROM suppliers WHERE supplier_id = %s", (supplier_id,))
+    supplier_row = cur.fetchone()
+
+    if not supplier_row:
+        flash("⚠️ Supplier not found!", "warning")
+        return redirect(url_for('view_suppliers'))
+
+    # Convert tuple to dictionary
+    supplier = {"supplier_id": supplier_row[0], "name": supplier_row[1]}
+
+    # Fetch all contacts associated with this supplier
+    cur.execute("""
+        SELECT contact_id, contact_name, email, office_phone, mobile 
+        FROM supplier_contacts WHERE supplier_id = %s
+    """, (supplier_id,))
+    contacts = [
+        {"contact_id": row[0], "contact_name": row[1], "email": row[2], "office_phone": row[3], "mobile": row[4]}
+        for row in cur.fetchall()
+    ]
+
+    cur.close()
+    conn.close()
+
+    return render_template('view_supplier_contacts.html', supplier=supplier, contacts=contacts)
+
 
 #Add new contact
 @app.route('/add-supplier-contact/<int:supplier_id>', methods=['POST'])
 def add_supplier_contact(supplier_id):
-    if request.method == 'POST':
-        contact_name = request.form['contact_name']
-        email = request.form['email']
-        office_phone = request.form.get('office_phone', None)
-        mobile = request.form.get('mobile', None)
+    contact_name = request.form['contact_name']
+    email = request.form['email']
+    office_phone = request.form.get('office_phone', None)
+    mobile = request.form.get('mobile', None)
 
-        conn = get_db_connection()
-        cur = conn.cursor()
+    conn = get_db_connection()
+    cur = conn.cursor()
 
-        # Insert the new contact into supplier_contacts table
-        cur.execute("""
-            INSERT INTO supplier_contacts (supplier_id, contact_name, email, office_phone, mobile)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (supplier_id, contact_name, email, office_phone, mobile))
+    # Insert into supplier_contacts
+    cur.execute("""
+        INSERT INTO supplier_contacts (supplier_id, contact_name, email, office_phone, mobile)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (supplier_id, contact_name, email, office_phone, mobile))
 
-        conn.commit()
-        cur.close()
-        conn.close()
+    conn.commit()
+    cur.close()
+    conn.close()
 
-        flash('✅ Contact added successfully!', 'success')
-        return redirect(url_for('view_supplier', supplier_id=supplier_id))
-        
+    flash('✅ Contact added successfully!', 'success')
+    return redirect(url_for('view_supplier_contacts', supplier_id=supplier_id))  # ✅ Redirect back to same page
+      
         
 #Delete contact
 @app.route('/delete-contact/<int:contact_id>', methods=['POST'])
@@ -305,30 +346,30 @@ def add_supplier():
 
 
 # Edit Supplier
-@app.route('/edit-supplier/<int:supplier_id>', methods=['GET', 'POST'])
+@app.route('/edit-supplier/<int:supplier_id>', methods=['POST'])
 def edit_supplier(supplier_id):
     conn = get_db_connection()
     cur = conn.cursor()
 
-    if request.method == 'POST':
-        name = request.form['name']
-        contact_name = request.form.get('contact_name', '')
-        email = request.form.get('email', '')
-        office_phone = request.form.get('office_phone', '')
-        mobile = request.form.get('mobile', '')
-        address = request.form.get('address', '')
+    name = request.form['name']
+    primary_contact_id = request.form.get('primary_contact', None)
+    email = request.form.get('email', None)
+    phone = request.form.get('phone', None)
+    address = request.form.get('address', None)
 
-        cur.execute("""
-            UPDATE suppliers 
-            SET name = %s, contact_name = %s, email = %s, office_phone = %s, mobile = %s, address = %s
-            WHERE supplier_id = %s
-        """, (name, contact_name, email, office_phone, mobile, address, supplier_id))
-        conn.commit()
-        cur.close()
-        conn.close()
+    # Update supplier details including primary contact
+    cur.execute("""
+        UPDATE suppliers
+        SET name = %s, primary_contact_id = %s, address = %s
+        WHERE supplier_id = %s
+    """, (name, primary_contact_id, address, supplier_id))
 
-        flash('Supplier updated successfully!', 'success')
-        return redirect(url_for('view_suppliers'))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    flash("✅ Supplier updated successfully!", "success")
+    return redirect(url_for('view_suppliers'))
 
     # Fetch supplier details
     cur.execute("SELECT supplier_id, name, contact_name, email, office_phone, mobile, address FROM suppliers WHERE supplier_id = %s", (supplier_id,))
@@ -452,15 +493,28 @@ def edit_contract(contract_id):
     
     return render_template('edit_contract.html', contract=contract, suppliers=suppliers)
     
+# view_purchase_orders    
 @app.route('/purchase-orders')
 def view_purchase_orders():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM purchase_orders ORDER BY po_date DESC")
+
+    # ✅ FIX: Ensure correct column order
+    cur.execute("""
+        SELECT po.po_id, po.po_number, po.contract_id, po.po_date, po.amount, 
+            po.requester, po.status, s.name AS supplier_name, 
+            po.department, po.notes
+        FROM purchase_orders po
+        LEFT JOIN suppliers s ON po.supplier_id = s.supplier_id
+           ORDER BY po.po_date DESC
+    """)
     purchase_orders = cur.fetchall()
+
     cur.close()
     conn.close()
+
     return render_template('purchase_orders.html', purchase_orders=purchase_orders)
+
     
 @app.route('/edit-po/<int:po_id>', methods=['GET', 'POST'])
 def edit_po(po_id):
@@ -469,24 +523,45 @@ def edit_po(po_id):
 
     if request.method == 'POST':
         po_number = request.form['po_number']
-        contract_id = request.form['contract_id'] or None
+        contract_id = request.form.get('contract_id')
+        contract_id = contract_id if contract_id else None  # Ensure it allows NULL values
         po_date = request.form['po_date']
         amount = request.form['amount']
         requester = request.form['requester']
-        approver = request.form.get('approver', None)
+        approver = request.form.get('approver', None)  # Allow NULL
         status = request.form['status']
 
+        # 🛠 DEBUGGING: Print the values before updating
+        print(f"DEBUG: Updating PO {po_id} with values:")
+        print(f"PO Number: {po_number}, Contract ID: {contract_id}, Date: {po_date}, Amount: {amount}")
+        print(f"Requester: {requester}, Approver: {approver}, Status: {status}")
+
+        # ✅ FIX the order of values in the UPDATE query
         cur.execute("""
             UPDATE purchase_orders
             SET po_number = %s, contract_id = %s, po_date = %s, amount = %s, requester = %s, approver = %s, status = %s
             WHERE po_id = %s
         """, (po_number, contract_id, po_date, amount, requester, approver, status, po_id))
+
         conn.commit()
         cur.close()
         conn.close()
 
         flash('✅ Purchase Order updated successfully!', 'success')
         return redirect(url_for('view_purchase_orders'))
+
+    # Fetch the PO details
+    cur.execute("SELECT po_id, po_number, contract_id, po_date, amount, requester, status FROM purchase_orders WHERE po_id = %s", (po_id,))
+    po = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not po:
+        flash("⚠️ Purchase Order not found!", "warning")
+        return redirect(url_for('view_purchase_orders'))
+
+    return render_template('edit_po.html', po=dict(zip(["po_id", "po_number", "contract_id", "po_date", "amount", "requester", "approver", "status"], po)))
+
 
     cur.execute("SELECT * FROM purchase_orders WHERE po_id = %s", (po_id,))
     po = cur.fetchone()
@@ -499,6 +574,7 @@ def edit_po(po_id):
 
     return render_template('edit_po.html', po=dict(zip(["po_id", "po_number", "contract_id", "po_date", "amount", "requester", "approver", "status"], po)))
 
+# Delete_po
 @app.route('/delete-po/<int:po_id>')
 def delete_po(po_id):
     conn = get_db_connection()
@@ -510,7 +586,8 @@ def delete_po(po_id):
     
     flash('✅ Purchase Order deleted successfully!', 'success')
     return redirect(url_for('view_purchase_orders'))
-    
+ 
+# Add_po 
 @app.route('/add-po', methods=['GET', 'POST'])
 def add_po():
     conn = get_db_connection()
@@ -524,7 +601,8 @@ def add_po():
     suppliers = cur.fetchall()
 
     if request.method == 'POST':
-        contract_id = request.form.get('contract_id') or None
+        contract_id = request.form.get('contract_id')
+        contract_id = contract_id if contract_id else None  # Allow NULL values
         po_number = request.form['po_number']
         po_date = request.form['po_date']
         amount = request.form['amount']
@@ -536,7 +614,8 @@ def add_po():
         cur.execute("""
             INSERT INTO purchase_orders (contract_id, po_number, po_date, amount, requester, approver, status) 
             VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (contract_id, po_number, po_date, amount, requester, approver, status))
+            """, (contract_id, po_number, po_date, amount, requester, approver, status))
+
         conn.commit()
 
         cur.close()

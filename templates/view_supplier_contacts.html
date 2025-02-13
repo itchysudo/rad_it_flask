@@ -6,15 +6,13 @@
 <div class="container">
     <h2>Contacts for {{ supplier["name"] }}</h2>
 
-    <!-- Add New Contact Button -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4>Contacts</h4>
-        <a href="{{ url_for('add_supplier_contact', supplier_id=supplier['supplier_id']) }}" class="btn btn-success">
-            <i class="fas fa-plus"></i> Add Contact
-        </a>
-    </div>
+    <!-- Add Contact Button -->
+    <a href="#" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addContactModal">
+        <i class="fas fa-plus"></i> Add Contact
+    </a>
 
-    <table class="table table-striped">
+    <!-- Contacts Table -->
+    <table class="table table-striped mt-3">
         <thead class="table-dark">
             <tr>
                 <th>Name</th>
@@ -44,7 +42,45 @@
         </tbody>
     </table>
 
-    <a href="{{ url_for('view_supplier', supplier_id=supplier['supplier_id']) }}" class="btn btn-secondary mt-3">Back to Supplier</a>
+    <!-- Back to Suppliers -->
+    <a href="{{ url_for('view_suppliers') }}" class="btn btn-secondary mt-3">
+        <i class="fas fa-arrow-left"></i> Back to Suppliers
+    </a>
+</div>
+
+<!-- Add Contact Modal -->
+<div class="modal fade" id="addContactModal" tabindex="-1" aria-labelledby="addContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addContactModalLabel">Add New Contact</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_supplier_contact', supplier_id=supplier['supplier_id']) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Contact Name</label>
+                        <input type="text" class="form-control" name="contact_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Office Phone</label>
+                        <input type="text" class="form-control" name="office_phone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mobile</label>
+                        <input type="text" class="form-control" name="mobile">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Add Contact</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
-
