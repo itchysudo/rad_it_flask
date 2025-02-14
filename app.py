@@ -2,6 +2,19 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 import psycopg2
 import os
 from dotenv import load_dotenv  # Ensure this is imported if using a .env file
+import os
+from werkzeug.utils import secure_filename
+from flask import send_from_directory
+
+app = Flask(__name__)
+
+UPLOAD_FOLDER = r"C:\projects\rad_it_flask\uploads\contracts"
+ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}  # Define allowed file types
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+# Ensure the upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 # Load environment variables from .env file (if using .env)
 load_dotenv()
@@ -112,17 +125,39 @@ def view_suppliers():
 def view_contracts():
     conn = get_db_connection()
     cur = conn.cursor()
+
+    # Check if contract_file exists before using it in SELECT
     cur.execute("""
-        SELECT c.contract_id, c.contract_name, s.name AS supplier_name, 
-               c.start_date, c.end_date, c.value, c.payment_frequency
-        FROM contracts c
-        JOIN suppliers s ON c.supplier_id = s.supplier_id
-        ORDER BY c.end_date
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = 'contracts' AND column_name = 'contract_file'
     """)
+    has_contract_file = cur.fetchone()
+
+    # Construct SQL dynamically based on column existence
+    select_columns = "c.contract_id, c.contract_name, s.name AS supplier_name, c.start_date, c.end_date, c.value, c.payment_frequency"
+    if has_contract_file:
+        select_columns += ", c.contract_file"
+
+    query = f"""
+        SELECT {select_columns}
+        FROM contracts c
+        LEFT JOIN suppliers s ON c.supplier_id = s.supplier_id
+        ORDER BY c.end_date
+    """
+
+    cur.execute(query)
     contracts = cur.fetchall()
+
+    # Fetch suppliers
+    cur.execute("SELECT supplier_id, name FROM suppliers ORDER BY name")
+    suppliers = cur.fetchall()
+
     cur.close()
     conn.close()
-    return render_template('contracts.html', contracts=contracts)
+
+    return render_template('contracts.html', contracts=contracts, suppliers=suppliers)
+
+
     
 #View Supplier
 @app.route('/view-supplier/<int:supplier_id>')
@@ -282,7 +317,7 @@ def delete_contact(contact_id):
     flash("✅ Contact deleted successfully!", "success")
     return redirect(url_for('view_supplier', supplier_id=supplier_id))
     
-# Set primary  contact    
+# Set primary contact    
 @app.route('/set-primary-contact/<int:contact_id>', methods=['POST'])
 def set_primary_contact(contact_id):
     conn = get_db_connection()
@@ -307,10 +342,6 @@ def set_primary_contact(contact_id):
 
     flash("✅ Primary contact updated successfully!", "success")
     return redirect(url_for('view_supplier', supplier_id=supplier_id))
-
-
-
-
 
 # Add Supplier
 @app.route('/add-supplier', methods=['GET', 'POST'])
@@ -458,12 +489,23 @@ def delete_contract(contract_id):
     return redirect(url_for('view_contracts'))
 
 # Edit Contract
-@app.route('/edit-contract/<int:contract_id>', methods=['GET', 'POST'])
+import os
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER = "uploads/contracts"
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+# Ensure the upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+@app.route('/edit-contract/<int:contract_id>', methods=['POST'])
 def edit_contract(contract_id):
+    print(f"DEBUG: edit_contract route accessed for Contract ID: {contract_id}")  # ✅ Debugging
+
     conn = get_db_connection()
     cur = conn.cursor()
-    
-    if request.method == 'POST':
+
+    try:
         contract_name = request.form['contract_name']
         supplier_id = request.form['supplier_id']
         start_date = request.form['start_date']
@@ -472,17 +514,102 @@ def edit_contract(contract_id):
         payment_frequency = request.form['payment_frequency']
         terms = request.form.get('terms', '')
 
-        cur.execute("""
-            UPDATE contracts
-            SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, value = %s, payment_frequency = %s, terms = %s
-            WHERE contract_id = %s
-        """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms, contract_id))
+        # ✅ Handle File Upload
+        file_path = None
+        if 'contract_file' in request.files:
+            file = request.files['contract_file']
+            if file and file.filename.strip():  # Ensures file isn't empty
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+                file.save(file_path)
+
+                # ✅ Update contract with the uploaded file path
+                cur.execute("""
+                    UPDATE contracts
+                    SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
+                        value = %s, payment_frequency = %s, terms = %s, contract_file = %s
+                    WHERE contract_id = %s
+                """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms, file_path, contract_id))
+            else:
+                # ✅ Update contract without changing file
+                cur.execute("""
+                    UPDATE contracts
+                    SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
+                        value = %s, payment_frequency = %s, terms = %s
+                    WHERE contract_id = %s
+                """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms, contract_id))
+
         conn.commit()
+        flash('✅ Contract updated successfully!', 'success')
+        return redirect(url_for('view_contracts'))
+
+    except KeyError as e:
+        print(f"❌ KeyError: Missing form field {e}")  # Debugging Output
+        flash(f"⚠️ Missing required field: {e}", "danger")
+        return redirect(url_for('view_contracts'))
+
+    finally:
         cur.close()
         conn.close()
 
-        flash('✅ Contract updated successfully!', 'success')
-        return redirect(url_for('view_contracts'))
+    if request.method == 'POST':
+        try:
+            contract_name = request.form['contract_name']
+            supplier_id = request.form['supplier_id']
+            start_date = request.form['start_date']
+            end_date = request.form['end_date']
+            value = request.form['value']
+            payment_frequency = request.form['payment_frequency']
+            terms = request.form.get('terms', '')
+
+            # Handle File Upload
+            file_path = None
+            if 'contract_file' in request.files:
+                file = request.files['contract_file']
+                if file and file.filename != "":
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+                    file.save(file_path)
+
+                    cur.execute("""
+                        UPDATE contracts
+                        SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
+                            value = %s, payment_frequency = %s, terms = %s, contract_file = %s
+                        WHERE contract_id = %s
+                    """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms, file_path, contract_id))
+                else:
+                    cur.execute("""
+                        UPDATE contracts
+                        SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
+                            value = %s, payment_frequency = %s, terms = %s
+                        WHERE contract_id = %s
+                    """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms, contract_id))
+
+            conn.commit()
+            flash('✅ Contract updated successfully!', 'success')
+            return redirect(url_for('view_contracts'))
+
+        except KeyError as e:
+            print(f"❌ KeyError: Missing form field {e}")  # Debugging Output
+            flash(f"⚠️ Missing required field: {e}", "danger")
+            return redirect(url_for('view_contracts'))
+
+    # Fetch contract details
+    cur.execute("SELECT * FROM contracts WHERE contract_id = %s", (contract_id,))
+    contract = cur.fetchone()
+
+    # ✅ Fetch suppliers list
+    cur.execute("SELECT supplier_id, name FROM suppliers ORDER BY name")
+    suppliers = cur.fetchall()
+
+    # ✅ Debugging: Check if suppliers are retrieved
+    print(f"DEBUG: Suppliers List: {suppliers}")
+
+    cur.close()
+    conn.close()
+
+    return render_template('edit_contract.html', contract=contract, suppliers=suppliers)
+
 
     cur.execute("SELECT * FROM contracts WHERE contract_id = %s", (contract_id,))
     contract = cur.fetchone()
@@ -492,7 +619,32 @@ def edit_contract(contract_id):
     conn.close()
     
     return render_template('edit_contract.html', contract=contract, suppliers=suppliers)
-    
+
+# Download contract
+@app.route('/download-contract/<int:contract_id>')
+def download_contract(contract_id):
+    """Serve the contract file for download."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Fetch the file path from the database
+    cur.execute("SELECT contract_file FROM contracts WHERE contract_id = %s", (contract_id,))
+    contract_file = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    if not contract_file or not contract_file[0]:
+        flash("⚠️ No contract file found for this contract.", "warning")
+        return redirect(url_for('view_contracts'))
+
+    # Extract the file name
+    file_path = contract_file[0]
+    filename = os.path.basename(file_path)
+
+    # Return the file from the upload directory
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=True)
+
 # view_purchase_orders    
 @app.route('/purchase-orders')
 def view_purchase_orders():

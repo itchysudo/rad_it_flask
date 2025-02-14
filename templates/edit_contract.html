@@ -3,31 +3,54 @@
 {% block content %}
 <div class="container">
     <h2 class="mb-4">Edit Contract</h2>
-    <form method="POST" action="{{ url_for('edit_contract', contract_id=contract.contract_id) }}">
+    
+    <!-- IMPORTANT: Add enctype="multipart/form-data" for file uploads -->
+    <form method="POST" action="{{ url_for('edit_contract', contract_id=contract.contract_id) }}" enctype="multipart/form-data">
+        
         <div class="mb-3">
             <label class="form-label">Contract Name</label>
             <input type="text" class="form-control" name="contract_name" value="{{ contract.contract_name }}" required>
         </div>
+
         <div class="mb-3">
             <label class="form-label">Supplier</label>
             <select class="form-control" name="supplier_id" required>
-                {% for supplier in suppliers %}
-                <option value="{{ supplier[0] }}" {% if supplier[0] == contract.supplier_id %}selected{% endif %}>{{ supplier[1] }}</option>
-                {% endfor %}
+                {% if suppliers %}
+                    {% for supplier in suppliers %}
+                        <option value="{{ supplier[0] }}" {% if supplier[0] == contract.supplier_id %}selected{% endif %}>
+                            {{ supplier[1] }}
+                        </option>
+                    {% endfor %}
+                {% else %}
+                    <option>No suppliers found</option>
+                {% endif %}
             </select>
+            
+            <!-- Debugging -->
+            <p>DEBUG: Suppliers Available</p>
+            <ul>
+                {% for supplier in suppliers %}
+                    <li>{{ supplier[0] }} - {{ supplier[1] }}</li>
+                {% endfor %}
+            </ul>
+            
         </div>
+
         <div class="mb-3">
             <label class="form-label">Start Date</label>
             <input type="date" class="form-control" name="start_date" value="{{ contract.start_date }}" required>
         </div>
+
         <div class="mb-3">
             <label class="form-label">End Date</label>
             <input type="date" class="form-control" name="end_date" value="{{ contract.end_date }}" required>
         </div>
+
         <div class="mb-3">
             <label class="form-label">Total Contract Value (£)</label>
             <input type="number" step="0.01" class="form-control" name="value" value="{{ contract.value }}" required>
         </div>
+
         <div class="mb-3">
             <label class="form-label">Payment Frequency</label>
             <select class="form-control" name="payment_frequency" required>
@@ -36,10 +59,18 @@
                 <option value="Yearly" {% if contract.payment_frequency == "Yearly" %}selected{% endif %}>Yearly</option>
             </select>
         </div>
+
         <div class="mb-3">
             <label class="form-label">Contract Terms</label>
             <textarea class="form-control" name="terms">{{ contract.terms }}</textarea>
         </div>
+
+        <!-- ✅ File Upload -->
+        <div class="mb-3">
+            <label class="form-label">Upload Contract File</label>
+            <input type="file" class="form-control" name="contract_file">
+        </div>
+
         <button type="submit" class="btn btn-success">Update Contract</button>
     </form>
 </div>
