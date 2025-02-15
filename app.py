@@ -120,6 +120,9 @@ def view_suppliers():
     return render_template('suppliers.html', suppliers=suppliers, supplier_contacts=supplier_contacts)
 
 
+from datetime import datetime
+from dateutil.relativedelta import relativedelta  # ✅ Exact date difference
+
 # View Contracts
 @app.route('/contracts')
 def view_contracts():
@@ -148,6 +151,52 @@ def view_contracts():
     cur.execute(query)
     contracts = cur.fetchall()
 
+    print("DEBUG: Retrieved Contracts from DB:", contracts)  # ✅ Debugging
+
+    # Convert total contract value to installment amount
+    updated_contracts = []
+    for contract in contracts:
+        contract_id, contract_name, supplier_name, start_date, end_date, value, payment_frequency, *file_info = contract
+
+        print(f"\nDEBUG: Processing Contract {contract_id}")  # ✅ Debugging
+        print(f"  Raw Value from DB: {value}")
+
+        # ✅ Ensure value is always converted safely
+        try:
+            value = float(value) if value not in (None, "", "NULL") else 0.0
+        except ValueError as e:
+            print(f"❌ ERROR: Could not convert value '{value}' to float: {e}")
+            value = 0.0  # Default to zero if conversion fails
+
+        print(f"  Converted Value: {value}")
+
+        # ✅ Calculate contract duration in months (using `relativedelta`)
+        contract_duration_months = relativedelta(end_date, start_date).years * 12 + relativedelta(end_date, start_date).months
+
+        # ✅ Ensure the correct number of payments for each frequency
+        num_payments = {
+            "One-time": 1,
+            "Monthly": contract_duration_months,
+            "Quarterly": contract_duration_months // 3,  # ✅ Fixed: Quarterly is every 3 months
+            "Annually": contract_duration_months // 12
+        }.get(payment_frequency, 1)
+
+        # ✅ Ensure num_payments is never zero
+        num_payments = max(1, num_payments)
+
+        # ✅ Calculate installment amount
+        installment_amount = value / num_payments
+
+        # ✅ Debugging Output
+        print(f"  Contract Duration: {contract_duration_months} months")
+        print(f"  Number of Payments: {num_payments}")
+        print(f"  Installment Amount: {installment_amount:.2f}")
+
+        # ✅ Append updated contract with correct values
+        updated_contracts.append(
+            (contract_id, contract_name, supplier_name, start_date, end_date, value, installment_amount, payment_frequency, *file_info)
+        )
+
     # Fetch suppliers
     cur.execute("SELECT supplier_id, name FROM suppliers ORDER BY name")
     suppliers = cur.fetchall()
@@ -155,9 +204,7 @@ def view_contracts():
     cur.close()
     conn.close()
 
-    return render_template('contracts.html', contracts=contracts, suppliers=suppliers)
-
-
+    return render_template('contracts.html', contracts=updated_contracts, suppliers=suppliers)
     
 #View Supplier
 @app.route('/view-supplier/<int:supplier_id>')
@@ -514,30 +561,36 @@ def edit_contract(contract_id):
         payment_frequency = request.form['payment_frequency']
         terms = request.form.get('terms', '')
 
-        # ✅ Handle File Upload
+        # ✅ Handle File Upload with Renaming
         file_path = None
         if 'contract_file' in request.files:
             file = request.files['contract_file']
             if file and file.filename.strip():  # Ensures file isn't empty
                 filename = secure_filename(file.filename)
-                file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+
+                # 🔹 Rename file to avoid conflicts (contract_3_example.pdf)
+                new_filename = f"contract_{contract_id}_{filename}"
+
+                # 🔹 Ensure correct folder structure
+                file_path = os.path.join(app.config["UPLOAD_FOLDER"], new_filename)
+
+                # 🔹 Move the file to the correct location
                 file.save(file_path)
 
-                # ✅ Update contract with the uploaded file path
+                # ✅ Update the contract record with the new file path
                 cur.execute("""
                     UPDATE contracts
-                    SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
-                        value = %s, payment_frequency = %s, terms = %s, contract_file = %s
+                    SET contract_file = %s
                     WHERE contract_id = %s
-                """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms, file_path, contract_id))
-            else:
-                # ✅ Update contract without changing file
-                cur.execute("""
-                    UPDATE contracts
-                    SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
-                        value = %s, payment_frequency = %s, terms = %s
-                    WHERE contract_id = %s
-                """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms, contract_id))
+                """, (file_path, contract_id))
+
+        # ✅ Update contract details
+        cur.execute("""
+            UPDATE contracts
+            SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
+                value = %s, payment_frequency = %s, terms = %s
+            WHERE contract_id = %s
+        """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, terms, contract_id))
 
         conn.commit()
         flash('✅ Contract updated successfully!', 'success')
@@ -551,6 +604,7 @@ def edit_contract(contract_id):
     finally:
         cur.close()
         conn.close()
+
 
     if request.method == 'POST':
         try:

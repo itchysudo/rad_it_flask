@@ -16,7 +16,8 @@
                 <th>Supplier</th>
                 <th>Start Date</th>
                 <th>End Date</th>
-                <th>Total Value (£)</th>
+                <th>Total Contract Value (£)</th>
+                <th>Installment Amount (£)</th>
                 <th>Payment Frequency</th>
                 <th>Actions</th>
             </tr>
@@ -33,8 +34,9 @@
                 <td>{{ contract[2] }}</td> <!-- Supplier Name -->
                 <td>{{ contract[3] }}</td> <!-- Start Date -->
                 <td>{{ contract[4] }}</td> <!-- End Date -->
-                <td>£{{ "%.2f"|format(contract[5]) }}</td> <!-- Total Value -->
-                <td>{{ contract[6] }}</td> <!-- Payment Frequency -->
+                <td>£{{ "%.2f"|format(contract[5]|float) }}</td> <!-- Total Contract Value -->
+                <td>£{{ "%.2f"|format(contract[6]|float) }}</td> <!-- Installment Amount -->
+                <td>{{ contract[7] }}</td> <!-- Payment Frequency -->
                 <td>
                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#contractModal{{ contract[0] }}">
                         <i class="fas fa-eye"></i>
@@ -80,23 +82,29 @@
                             
                                 <label class="form-label">Total Value (£)</label>
                                 <input type="number" step="0.01" class="form-control" name="value" value="{{ contract[5] }}" required>
+
+                                <p class="mt-2"><strong>Installment Amount:</strong> £{{ '%.2f'|format(contract[6]) }}</p>
+
                             
                                 <label class="form-label">Payment Frequency</label>
                                 <select class="form-control" name="payment_frequency">
-                                    <option value="One-time" {% if contract[6] == "One-time" %}selected{% endif %}>One-time</option>
-                                    <option value="Monthly" {% if contract[6] == "Monthly" %}selected{% endif %}>Monthly</option>
-                                    <option value="Quarterly" {% if contract[6] == "Quarterly" %}selected{% endif %}>Quarterly</option>
-                                    <option value="Annually" {% if contract[6] == "Annually" %}selected{% endif %}>Annually</option>
+                                    <option value="One-time" {% if contract[7] == "One-time" %}selected{% endif %}>One-time</option>
+                                    <option value="Monthly" {% if contract[7] == "Monthly" %}selected{% endif %}>Monthly</option>
+                                    <option value="Quarterly" {% if contract[7] == "Quarterly" %}selected{% endif %}>Quarterly</option>
+                                    <option value="Annually" {% if contract[7] == "Annually" %}selected{% endif %}>Annually</option>
                                 </select>
+
+                                <!-- Display the calculated installment amount -->
+                                <p class="mt-2"><strong>Installment Amount:</strong> £{{ '%.2f'|format(contract[6]) }}</p>
                             
                                 <!-- File Upload for Contract Documents -->
                                 <label class="form-label mt-3">Upload Contract Document</label>
                                 <input type="file" class="form-control" name="contract_file">
                             
                                 <!-- Display Uploaded Files -->
-                                {% if contract[7] %}
+                                {% if contract[8] %}
                                 <p class="mt-2"><strong>Uploaded File:</strong> 
-                                    <a href="{{ url_for('download_contract', contract_id=contract[0]) }}" target="_blank">{{ contract[7].split('/')[-1] }}</a>
+                                    <a href="{{ url_for('download_contract', contract_id=contract[0]) }}" target="_blank">{{ contract[8].split('/')[-1] }}</a>
                                 </p>
                                 {% endif %}
                             </div>
