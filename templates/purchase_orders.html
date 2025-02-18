@@ -10,15 +10,15 @@
     <input type="text" id="searchInput" class="form-control mb-3" placeholder="Search purchase orders..." onkeyup="filterTable()">
 
     <!-- Purchase Orders table -->
-    <table class="table table-striped" id="dataTable">
+    <table class="table table-striped text-center">
         <thead class="table-dark">
             <tr>
                 <th>ID</th>
                 <th>PO Number</th>
-                <th>Contract ID</th>
+                <th>Contract</th>
                 <th>Date</th>
                 <th>Amount (£)</th>
-                <th>Requester</th>                
+                <th>Requester</th>
                 <th>Status</th>
                 <th>Supplier</th>
                 <th>Department</th>
@@ -28,92 +28,85 @@
         <tbody>
             {% for po in purchase_orders %}
             <tr>
-                <td>{{ po[0] }}</td>
+                <td>{{ po[0] }}</td>  <!-- PO ID -->
                 <td>
-                    <a href="#" data-bs-toggle="modal" data-bs-target="#poModal{{ po[0] }}">{{ po[1] }}</a>
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#editPOModal{{ po[0] }}">
+                        {{ po[1] }}
+                    </a>
                 </td>
-                <td>{{ po[2] or 'N/A' }}</td>
-                <td>{{ po[3] }}</td>
-                <td>£{{ "%.2f"|format(po[4]) }}</td>
-                <td>{{ po[5] }}</td>
-                <td>{{ po[6] }}</td>
-                <td>{{ po[7] or 'N/A' }}</td>
-                <td>{{ po[8] or 'N/A' }}</td>
+                <td>{{ po[2] if po[2] else 'No Contract Assigned' }}</td>  <!-- Contract Name -->
+                <td>{{ po[3] }}</td>  <!-- Date -->
+                <td>£{{ "{:.2f}".format(po[4]|float) }}</td>  <!-- Amount -->
+                <td>{{ po[5] }}</td>  <!-- Requester -->
+                <td>{{ po[6] }}</td>  <!-- Status -->
+                <td>{{ po[7] if po[7] else 'N/A' }}</td>  <!-- Supplier -->
+                <td>{{ po[8] if po[8] else 'N/A' }}</td>  <!-- Department -->
                 <td>
-                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#poModal{{ po[0] }}">
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#editPOModal{{ po[0] }}">
                         <i class="fas fa-edit"></i>
                     </button>
                 </td>
             </tr>
-
-            <!-- PO Modal -->
-            <div class="modal fade" id="poModal{{ po[0] }}" tabindex="-1" aria-labelledby="poModalLabel{{ po[0] }}" aria-hidden="true">
+    
+            <!-- Edit Purchase Order Modal -->
+            <div class="modal fade" id="editPOModal{{ po[0] }}" tabindex="-1" aria-labelledby="editPOModalLabel{{ po[0] }}" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <form method="POST" action="{{ url_for('edit_po', po_id=po[0]) }}" class="edit-po-form">
+                        <form method="POST" action="{{ url_for('edit_po', po_id=po[0]) }}">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="poModalLabel{{ po[0] }}">Edit PO - {{ po[1] }}</h5>
+                                <h5 class="modal-title" id="editPOModalLabel{{ po[0] }}">Edit PO - {{ po[1] }}</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <div class="form-floating mb-3">
-                                    <input type="text" class="form-control" name="po_number" value="{{ po[1] }}" required>
-                                    <label>PO Number</label>
-                                </div>
-                            
-                                <div class="form-floating mb-3">
-                                    <input type="text" class="form-control" name="contract_id" value="{{ po[2] or '' }}">
-                                    <label>Contract ID</label>
-                                </div>
-                            
-                                <div class="form-floating mb-3">
-                                    <input type="date" class="form-control" name="po_date" value="{{ po[3] }}" required>
-                                    <label>PO Date</label>
-                                </div>
-                            
-                                <div class="form-floating mb-3">
-                                    <input type="number" step="0.01" class="form-control" name="amount" value="{{ po[4] }}" required>
-                                    <label>Amount (£)</label>
-                                </div>
-                            
-                                <div class="form-floating mb-3">
-                                    <input type="text" class="form-control" name="requester" value="{{ po[5] }}" required>
-                                    <label>Requester</label>
-                                </div>
-                            
-                                <div class="form-floating mb-3">
-                                    <select class="form-select" name="status" required>
-                                        <option value="Pending" {% if po[6] == "Pending" %}selected{% endif %}>Pending</option>
-                                        <option value="Approved" {% if po[6] == "Approved" %}selected{% endif %}>Approved</option>
-                                        <option value="Completed" {% if po[6] == "Completed" %}selected{% endif %}>Completed</option>
-                                    </select>
-                                    <label>Status</label>
-                                </div>
-                            
-                                <div class="form-floating mb-3">
-                                    <input type="text" class="form-control" name="supplier" value="{{ po[7] or '' }}">
-                                    <label>Supplier</label>
-                                </div>
-                            
-                                <div class="form-floating mb-3">
-                                    <input type="text" class="form-control" name="department" value="{{ po[8] or '' }}">
-                                    <label>Department</label>
-                                </div>
-                            
-                                <div class="form-floating">
-                                    <textarea class="form-control" name="notes" style="height: 100px;">{{ po[9] or '' }}</textarea>
-                                    <label>Notes</label>
-                                </div>
+                                <label class="form-label">PO Number</label>
+                                <input type="text" class="form-control" name="po_number" value="{{ po[1] }}" required>
+    
+                                <label class="form-label">Contract</label>
+                                <select class="form-control" name="contract_id">
+                                    <option value="">Select Contract</option>
+                                    {% for contract in contracts %}
+                                    <option value="{{ contract[0] }}" {% if po[2] == contract[1] %}selected{% endif %}>
+                                        {{ contract[1] }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+    
+                                <label class="form-label">Supplier</label>
+                                <select class="form-control" name="supplier_id">
+                                    <option value="">Select Supplier</option>
+                                    {% for supplier in suppliers %}
+                                    <option value="{{ supplier[0] }}" {% if po[7] == supplier[1] %}selected{% endif %}>
+                                        {{ supplier[1] }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+    
+                                <label class="form-label">PO Date</label>
+                                <input type="date" class="form-control" name="po_date" value="{{ po[3] }}" required>
+    
+                                <label class="form-label">Amount (£)</label>
+                                <input type="number" step="0.01" class="form-control" name="amount" value="{{ po[4] }}" required>
+    
+                                <label class="form-label">Requester</label>
+                                <input type="text" class="form-control" name="requester" value="{{ po[5] }}" required>
+    
+                                <label class="form-label">Status</label>
+                                <select class="form-control" name="status">
+                                    <option value="Pending" {% if po[6] == "Pending" %}selected{% endif %}>Pending</option>
+                                    <option value="Approved" {% if po[6] == "Approved" %}selected{% endif %}>Approved</option>
+                                    <option value="Completed" {% if po[6] == "Completed" %}selected{% endif %}>Completed</option>
+                                </select>
+    
+                                <label class="form-label">Department</label>
+                                <input type="text" class="form-control" name="department" value="{{ po[8] }}">
+    
+                                <label class="form-label">Notes</label>
+                                <textarea class="form-control" name="notes">{{ po[9] }}</textarea>
                             </div>
-                            
                             <div class="modal-footer">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save"></i> Save Changes
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                                    <i class="fas fa-times"></i> Close
-                                </button>
-                                
+                                <button type="submit" class="btn btn-success">Save Changes</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             </div>
                         </form>
                     </div>
@@ -122,50 +115,7 @@
             {% endfor %}
         </tbody>
     </table>
+    
 </div>
-
-<!-- JavaScript for filtering -->
-<script>
-    function filterTable() {
-        var input, filter, table, tr, td, i, j, txtValue;
-        input = document.getElementById("searchInput");
-        filter = input.value.toLowerCase();
-        table = document.getElementById("dataTable");
-        tr = table.getElementsByTagName("tr");
-
-        for (i = 1; i < tr.length; i++) {
-            tr[i].style.display = "none"; 
-            td = tr[i].getElementsByTagName("td");
-
-            for (j = 0; j < td.length; j++) {
-                if (td[j]) {
-                    txtValue = td[j].textContent || td[j].innerText;
-                    if (txtValue.toLowerCase().indexOf(filter) > -1) {
-                        tr[i].style.display = "";
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    document.addEventListener("DOMContentLoaded", function() {
-        document.querySelectorAll(".edit-po-form").forEach(form => {
-            form.addEventListener("submit", function(event) {
-                event.preventDefault();
-                let formData = new FormData(this);
-                fetch(this.action, {
-                    method: "POST",
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(() => {
-                    location.reload(); // Refresh the page after saving changes
-                })
-                .catch(error => console.error("Error:", error));
-            });
-        });
-    });
-</script>
 
 {% endblock %}

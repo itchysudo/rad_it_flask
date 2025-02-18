@@ -1,9 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Edit Supplier{% endblock %}
-
 {% block content %}
-<div class="container">
+<div class="container mt-4">
     <h2 class="mb-4">Edit Supplier</h2>
     <form method="POST" action="{{ url_for('edit_supplier', supplier_id=supplier.supplier_id) }}">
         <div class="mb-3">
@@ -30,7 +28,18 @@
             <label class="form-label">Address</label>
             <textarea class="form-control" name="address">{{ supplier.address }}</textarea>
         </div>
+        <div class="mb-3">
+            <label class="form-label">Primary Contact</label>
+            <select class="form-control" name="primary_contact">
+                {% for contact in contacts %}
+                <option value="{{ contact[0] }}" {% if contact[0] == supplier.primary_contact_id %}selected{% endif %}>
+                    {{ contact[1] }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
         <button type="submit" class="btn btn-success">Update Supplier</button>
+        <a href="{{ url_for('view_suppliers') }}" class="btn btn-secondary">Cancel</a>
     </form>
 </div>
 {% endblock %}

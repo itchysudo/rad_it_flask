@@ -37,13 +37,16 @@
         </div>
 
         <div class="mb-3">
-            <label class="form-label">Start Date</label>
-            <input type="date" class="form-control" name="start_date" value="{{ contract.start_date }}" required>
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" class="form-control" name="start_date" 
+                   value="{{ contract.start_date }}" required>
         </div>
 
         <div class="mb-3">
             <label class="form-label">End Date</label>
-            <input type="date" class="form-control" name="end_date" value="{{ contract.end_date }}" required>
+            <label for="end_date" class="form-label">End Date</label>
+            <input type="date" class="form-control" name="end_date" 
+                   value="{{ contract.end_date }}" required>
         </div>
 
         <div class="mb-3">

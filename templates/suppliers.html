@@ -53,12 +53,13 @@
 
                     <label class="form-label">Primary Contact</label>
                     <select class="form-control" name="primary_contact">
-                        {% for contact in supplier_contacts[supplier[0]] %}
+                        {% for contact in supplier_contacts.get(supplier[0], []) %}
                         <option value="{{ contact[0] }}" {% if contact[0] == supplier[2] %}selected{% endif %}>
                             {{ contact[1] }}
                         </option>
                         {% endfor %}
                     </select>
+
 
                     <label class="form-label">Email</label>
                     <input type="email" class="form-control" name="email" value="{{ supplier[3] or '' }}">
