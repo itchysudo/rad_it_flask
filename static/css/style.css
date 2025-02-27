@@ -1,7 +1,151 @@
-.modal-body {
-    padding: 20px;
+/* Global Styles */
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #ffffff; /* Pure white background */
+    color: #333;
 }
 
-.form-floating label {
-    color: #6c757d;
+h1, h2, h3, .card-header {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-weight: bold;
+}
+
+/* Remove Background Box Around Title */
+.hero-section {
+    background: none !important;
+    box-shadow: none !important;
+    padding: 20px 0;
+}
+
+/* Navbar Styling */
+.navbar {
+    background-color: #007aff; /* Apple Blue */
+    padding: 12px 20px;
+    border-bottom: 3px solid #005bb5;
+    border-radius: 0 0 20px 20px;
+}
+
+.navbar a {
+    font-weight: 500;
+    color: #fff;
+    transition: color 0.2s ease-in-out;
+}
+
+.navbar a:hover {
+    color: #dbeaff;
+    text-decoration: underline;
+}
+
+/* Dropdown Hover Fix */
+.dropdown-menu {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item {
+    color: #333 !important;
+    font-weight: 500;
+}
+
+.dropdown-item:hover {
+    background-color: #007aff !important;
+    color: #fff !important;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 25px; /* Pill-shaped buttons */
+    font-weight: 600;
+    padding: 12px 20px;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary {
+    background-color: #007aff;
+    border: none;
+}
+
+.btn-primary:hover {
+    background-color: #005bb5;
+    transform: scale(1.05);
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border: none;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+    transform: scale(1.05);
+}
+
+/* Cards Styling */
+.card {
+    border-radius: 12px;
+    box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease-in-out;
+    background: #fff;
+    padding: 20px;
+    text-align: center;
+}
+
+.card h5, .card p {
+    margin: 5px 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.card-header {
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* Table Styling */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th {
+    background-color: #007aff;
+    color: white;
+    font-weight: 600;
+    padding: 12px;
+    border-bottom: 2px solid #005bb5;
+}
+
+td, th {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+}
+
+tr:hover {
+    background-color: #eaf2ff;
+}
+
+/* Back Button Styling */
+.btn-back {
+    display: inline-block;
+    margin-top: 15px;
+    border-radius: 25px;
+    background-color: #eaf2ff;
+    color: #007aff;
+    padding: 10px 20px;
+    transition: all 0.3s;
+}
+
+.btn-back:hover {
+    background-color: #d0e0ff;
+    transform: scale(1.05);
 }

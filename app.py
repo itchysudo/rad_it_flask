@@ -434,6 +434,16 @@ def edit_po(po_id):
     return render_template('edit_po.html', po=po_dict, suppliers=suppliers, contracts=contracts)
 
 
+import os
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER = r"C:\projects\rad_it_flask\uploads\contracts"
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'png', 'jpg'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 @app.route('/edit-contract/<int:contract_id>', methods=['GET', 'POST'])
 def edit_contract(contract_id):
     """Edit an existing contract."""
@@ -473,7 +483,7 @@ def edit_contract(contract_id):
     if request.method == 'POST':
         contract_name = request.form['contract_name']
         supplier_id = request.form['supplier_id']
-        start_date = request.form['start_date']  
+        start_date = request.form['start_date']
         end_date = request.form['end_date']
         value = request.form['value']
         payment_frequency = request.form['payment_frequency']
@@ -490,6 +500,30 @@ def edit_contract(contract_id):
         """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, contract_id))
 
         conn.commit()
+
+        # ✅ Handle File Upload
+        if 'contract_file' in request.files:
+            file = request.files['contract_file']
+
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+                try:
+                    # Ensure the upload directory exists
+                    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                        os.makedirs(app.config['UPLOAD_FOLDER'])
+
+                    file.save(file_path)  # Save file to upload folder
+
+                    # ✅ Insert file into `contract_files` table
+                    cur.execute("INSERT INTO contract_files (contract_id, file_path) VALUES (%s, %s)", (contract_id, file_path))
+                    conn.commit()
+
+                    print(f"✅ File successfully uploaded: {file_path}")
+                except Exception as e:
+                    print(f"❌ ERROR: Could not save file {filename}: {e}")
+
         cur.close()
         conn.close()
 
@@ -500,6 +534,7 @@ def edit_contract(contract_id):
     conn.close()
 
     return render_template('edit_contract.html', contract=contract, suppliers=suppliers)
+
 
 
 

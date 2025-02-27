@@ -110,4 +110,8 @@
         }
     }
 </script>
+
+<a href="{{ request.referrer or url_for('home') }}" class="btn btn-secondary mt-3">
+    <i class="fas fa-arrow-left"></i> Back
+</a>
 {% endblock %}
