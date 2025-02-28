@@ -797,34 +797,40 @@ def delete_contract(contract_id):
     
 
 
-# 📌 Delete Contract File
 @app.route('/delete-contract-file/<int:file_id>', methods=['POST'])
 def delete_contract_file(file_id):
+    """Delete a specific contract file from the system and database."""
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Fetch file path before deletion
-    cur.execute("SELECT file_path FROM contract_files WHERE file_id = %s", (file_id,))
+    # Fetch file path and contract_id before deletion
+    cur.execute("SELECT file_path, contract_id FROM contract_files WHERE file_id = %s", (file_id,))
     file = cur.fetchone()
 
     if file:
-        file_path = file[0]
+        file_path, contract_id = file
 
         # Delete from system
         try:
-            os.remove(file_path)
-        except FileNotFoundError:
-            print(f"WARNING: File {file_path} not found, skipping delete.")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"✅ Deleted file from system: {file_path}")
+            else:
+                print(f"⚠️ File {file_path} not found on system.")
+        except Exception as e:
+            print(f"❌ ERROR: Could not delete file {file_path}: {e}")
 
-    # Remove from database
-    cur.execute("DELETE FROM contract_files WHERE file_id = %s", (file_id,))
-    conn.commit()
+        # Remove from database
+        cur.execute("DELETE FROM contract_files WHERE file_id = %s", (file_id,))
+        conn.commit()
 
     cur.close()
     conn.close()
 
     flash("✅ File deleted successfully!", "success")
-    return redirect(url_for('view_contracts'))
+
+    # Redirect back to Edit Contract page
+    return redirect(url_for('edit_contract', contract_id=contract_id))
 
 
 # 📌 Download Contract File
