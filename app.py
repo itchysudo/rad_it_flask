@@ -461,7 +461,6 @@ def edit_contract(contract_id):
         flash("⚠️ Contract not found!", "warning")
         return redirect(url_for('view_contracts'))
 
-    # Convert tuple to dictionary and ensure dates are formatted as YYYY-MM-DD
     contract = {
         "contract_id": contract_row[0],
         "contract_name": contract_row[1],
@@ -472,57 +471,71 @@ def edit_contract(contract_id):
         "payment_frequency": contract_row[6]
     }
 
-    # 🔴 Debugging Output - Double-check retrieved contract details
-    print(f"\n🔵 DEBUG: Retrieved Contract {contract_id} for Editing")
-    print(f"Start Date from DB: {contract['start_date']}, End Date from DB: {contract['end_date']}\n")
-
-    # Fetch suppliers for dropdown
     cur.execute("SELECT supplier_id, name FROM suppliers ORDER BY name")
     suppliers = cur.fetchall()
 
     if request.method == 'POST':
-        contract_name = request.form['contract_name']
-        supplier_id = request.form['supplier_id']
-        start_date = request.form['start_date']
-        end_date = request.form['end_date']
-        value = request.form['value']
-        payment_frequency = request.form['payment_frequency']
+        contract_name = request.form.get('contract_name', '')
+        supplier_id = request.form.get('supplier_id', '0')
+
+        # Ensure supplier_id is an integer
+        try:
+            supplier_id = int(supplier_id) if supplier_id.isdigit() else None
+        except ValueError:
+            supplier_id = None
+
+        start_date = request.form.get('start_date', '')
+        end_date = request.form.get('end_date', '')
+        value = request.form.get('value', '0')
+        payment_frequency = request.form.get('payment_frequency', 'One-time')
 
         print(f"\n🔵 DEBUG: Updating Contract {contract_id}")
         print(f"Start Date: {start_date}, End Date: {end_date}")
 
-        # Update contract in database
         cur.execute("""
             UPDATE contracts 
             SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
                 value = %s, payment_frequency = %s
             WHERE contract_id = %s
         """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, contract_id))
-
         conn.commit()
 
-        # ✅ Handle File Upload
-        if 'contract_file' in request.files:
-            file = request.files['contract_file']
+        # ✅ Debugging: Show available files in the request
+        print(f"🔍 DEBUG: Request.files keys: {request.files.keys()}")
 
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        # ✅ Handle File Upload - Now Using 'contract_files'
+        if 'contract_files' in request.files:
+            file = request.files['contract_files']
 
-                try:
-                    # Ensure the upload directory exists
-                    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-                        os.makedirs(app.config['UPLOAD_FOLDER'])
+            if file and file.filename.strip():  # Check if a file was actually uploaded
+                print(f"🔵 DEBUG: Received file - {file.filename}")
 
-                    file.save(file_path)  # Save file to upload folder
+                if allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
-                    # ✅ Insert file into `contract_files` table
-                    cur.execute("INSERT INTO contract_files (contract_id, file_path) VALUES (%s, %s)", (contract_id, file_path))
-                    conn.commit()
+                    try:
+                        if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                            print(f"⚠️ Upload folder {app.config['UPLOAD_FOLDER']} does NOT exist. Creating it now...")
+                            os.makedirs(app.config['UPLOAD_FOLDER'])
 
-                    print(f"✅ File successfully uploaded: {file_path}")
-                except Exception as e:
-                    print(f"❌ ERROR: Could not save file {filename}: {e}")
+                        print(f"📂 Saving file to: {file_path}")
+                        file.save(file_path)  # Save file to upload folder
+                        print(f"✅ File successfully uploaded: {file_path}")
+
+                        # ✅ Insert file into database
+                        cur.execute("INSERT INTO contract_files (contract_id, file_path) VALUES (%s, %s)", (contract_id, file_path))
+                        conn.commit()
+                        print("✅ Database entry created for uploaded file.")
+
+                    except Exception as e:
+                        print(f"❌ ERROR: Could not save file {filename}: {e}")
+
+                else:
+                    print(f"❌ ERROR: File type not allowed ({file.filename})")
+
+            else:
+                print("❌ No valid file received!")
 
         cur.close()
         conn.close()
@@ -534,8 +547,6 @@ def edit_contract(contract_id):
     conn.close()
 
     return render_template('edit_contract.html', contract=contract, suppliers=suppliers)
-
-
 
 
 @app.route('/add-contract', methods=['GET', 'POST'])
