@@ -229,14 +229,14 @@ def edit_supplier(supplier_id):
 
 
 
-@app.route('/delete-supplier/<int:supplier_id>', methods=['POST'])
+@app.route('/delete-supplier/<int:supplier_id>', methods=['GET', 'POST'])
 def delete_supplier(supplier_id):
     """Delete a supplier and any associated contracts."""
     conn = get_db_connection()
     cur = conn.cursor()
 
     try:
-        # First, check if the supplier exists
+        # Check if the supplier exists
         cur.execute("SELECT * FROM suppliers WHERE supplier_id = %s", (supplier_id,))
         supplier = cur.fetchone()
 
@@ -573,7 +573,70 @@ def add_contract():
 
     return render_template('add_contract.html', suppliers=suppliers)
 
+@app.route('/add-supplier', methods=['GET', 'POST'])
+def add_supplier():
+    conn = get_db_connection()
+    cur = conn.cursor()
 
+    if request.method == 'POST':
+        name = request.form['name']
+        contact_name = request.form.get('contact_name', '').strip()
+        email = request.form.get('email', '').strip()
+        office_phone = request.form.get('office_phone', '').strip()
+        mobile = request.form.get('mobile', '').strip()
+        address = request.form.get('address', '').strip()
+
+        # ✅ Insert supplier into the suppliers table
+        cur.execute("""
+            INSERT INTO suppliers (name, address)
+            VALUES (%s, %s) RETURNING supplier_id
+        """, (name, address))
+        supplier_id = cur.fetchone()[0]  # Get the new supplier's ID
+
+        conn.commit()  # Commit the supplier first
+
+        primary_contact_id = None  # Default value for primary contact
+
+        # ✅ If contact details were provided, insert into supplier_contacts
+        if contact_name:
+            cur.execute("""
+                INSERT INTO supplier_contacts (supplier_id, contact_name, email, office_phone, mobile)
+                VALUES (%s, %s, %s, %s, %s) RETURNING contact_id
+            """, (supplier_id, contact_name, email, office_phone, mobile))
+            primary_contact_id = cur.fetchone()[0]  # Get the new contact's ID
+
+            conn.commit()  # Commit the contact
+
+        cur.close()
+        conn.close()
+
+        # ✅ If there's a contact, prompt the user to set as primary
+        if primary_contact_id:
+            flash(f"✅ Supplier added successfully! Do you want to set {contact_name} as the primary contact?", "info")
+            return redirect(url_for('set_primary_contact_popup', supplier_id=supplier_id, contact_id=primary_contact_id))
+
+        flash("✅ Supplier added successfully!", "success")
+        return redirect(url_for('view_suppliers'))
+
+    cur.close()
+    conn.close()
+
+    return render_template('add_supplier.html')
+
+@app.route('/set-primary-contact-popup/<int:supplier_id>/<int:contact_id>')
+def set_primary_contact_popup(supplier_id, contact_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    # Get contact details
+    cur.execute("SELECT contact_name FROM supplier_contacts WHERE contact_id = %s", (contact_id,))
+    result = cur.fetchone()  # ✅ Store result first to avoid calling fetchone() twice
+    contact_name = result[0] if result else "Unknown Contact"
+
+    cur.close()
+    conn.close()
+
+    return render_template('set_primary_contact.html', supplier_id=supplier_id, contact_id=contact_id, contact_name=contact_name)
 
 @app.route('/add-supplier-contact/<int:supplier_id>', methods=['POST'])
 def add_supplier_contact(supplier_id):

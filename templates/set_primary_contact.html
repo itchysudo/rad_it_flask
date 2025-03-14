@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Set Primary Contact{% endblock %}
+
+{% block content %}
+<div class="container text-center mt-5">
+    <h2>Set {{ contact_name }} as Primary Contact?</h2>
+    <p class="lead">This will make {{ contact_name }} the primary contact for this supplier.</p>
+
+    <form method="POST" action="{{ url_for('set_primary_contact', contact_id=contact_id) }}">
+        <button type="submit" class="btn btn-success">✅ Yes, Set as Primary</button>
+        <a href="{{ url_for('view_suppliers') }}" class="btn btn-secondary">❌ No, Skip</a>
+    </form>
+</div>
+{% endblock %}
