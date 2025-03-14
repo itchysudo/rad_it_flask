@@ -29,12 +29,12 @@
                         {{ contract[1] }}
                     </a>
                 </td>
-                <td>{{ contract[2] }}</td>
-                <td>{{ contract[3] }}</td>
-                <td>{{ contract[4] if contract[4] else '' }}</td>
-                <td>£{{ "%.2f"|format(contract[5]|float) }}</td>
+                <td>{{ contract[3] }}</td>  <!-- Fixed: contract[3] is supplier name -->
+                <td>{{ contract[4] }}</td>
+                <td>{{ contract[5] if contract[5] else '' }}</td>
                 <td>£{{ "%.2f"|format(contract[6]|float) }}</td>
-                <td>{{ contract[7] }}</td>
+                <td>£{{ "%.2f"|format(contract[7]|float) }}</td>
+                <td>{{ contract[8] }}</td>
                 <td>
                     <button class="btn btn-sm btn-primary edit-contract-btn" 
                         data-bs-toggle="modal" 
@@ -44,7 +44,7 @@
                     </button>
 
                     <a href="{{ url_for('edit_contract', contract_id=contract[0]) }}" class="btn btn-sm btn-warning">
-                        <i class="fas fa-edit"></i> <!-- ✏️ Edit Icon -->
+                        <i class="fas fa-edit"></i> 
                     </a>
 
                     <form action="{{ url_for('delete_contract', contract_id=contract[0]) }}" method="POST" style="display:inline;">
@@ -71,41 +71,47 @@
                                 <label class="form-label">Supplier</label>
                                 <select class="form-control" name="supplier_id" required>
                                     {% for supplier in suppliers %}
-                                        <option value="{{ supplier[0] }}" {% if supplier[0] == contract[2] %}selected{% endif %}>{{ supplier[1] }}</option>
+                                        <option value="{{ supplier[0] }}" {% if supplier[0] == contract[2] %}selected{% endif %}>
+                                            {{ supplier[1] }}
+                                        </option>
                                     {% endfor %}
                                 </select>
-                            
+                                
                                 <label class="form-label">Start Date</label>
                                 <input type="date" class="form-control" name="start_date"
-                                value="{{ contract[3].split('/')|reverse|join('-') if contract[3] else '' }}" required>
+                                value="{{ contract[4].split('/')|reverse|join('-') if contract[4] else '' }}" required>
                             
                                 <label class="form-label">End Date</label>
                                 <input type="date" class="form-control" name="end_date"
-                                value="{{ contract[4].split('/')|reverse|join('-') if contract[4] else '' }}" required>
+                                value="{{ contract[5].split('/')|reverse|join('-') if contract[5] else '' }}" required>
                             
                                 <label class="form-label">Total Value (£)</label>
-                                <input type="number" step="0.01" class="form-control" name="value" value="{{ contract[5] }}" required>
+                                <input type="number" step="0.01" class="form-control" name="value" value="{{ contract[6] }}" required>
                             
                                 <label class="form-label">Payment Frequency</label>
                                 <select class="form-control" name="payment_frequency">
-                                    <option value="One-time" {% if contract[7] == "One-time" %}selected{% endif %}>One-time</option>
-                                    <option value="Monthly" {% if contract[7] == "Monthly" %}selected{% endif %}>Monthly</option>
-                                    <option value="Quarterly" {% if contract[7] == "Quarterly" %}selected{% endif %}>Quarterly</option>
-                                    <option value="Annually" {% if contract[7] == "Annually" %}selected{% endif %}>Annually</option>
+                                    <option value="One-time" {% if contract[8] == "One-time" %}selected{% endif %}>One-time</option>
+                                    <option value="Monthly" {% if contract[8] == "Monthly" %}selected{% endif %}>Monthly</option>
+                                    <option value="Quarterly" {% if contract[8] == "Quarterly" %}selected{% endif %}>Quarterly</option>
+                                    <option value="Annually" {% if contract[8] == "Annually" %}selected{% endif %}>Annually</option>
                                 </select>
                             
-                                <p class="mt-2"><strong>Installment Amount:</strong> £{{ "%.2f"|format(contract[6]) }}</p>
+                                <p class="mt-2"><strong>Installment Amount:</strong> £{{ "%.2f"|format(contract[7]) }}</p>
                             
-                                <!-- ✅ Previously Uploaded Files (ONLY Filenames, No Path) -->
-                                {% if contract[8] %}
+                                <!-- ✅ Fix Contract Files - Ensure file_id is an integer -->
+                                {% if contract[9] %}
                                     <label class="form-label mt-3">Previously Uploaded Files:</label>
                                     <ul>
-                                        {% for file in contract[8] %}
-                                            <li>
-                                                <a href="{{ url_for('download_contract_file', file_id=file[0]) }}" target="_blank">
-                                                    {{ file[1].split('/')[-1] if '/' in file[1] else file[1].split('\\')[-1] }} <!-- Show Only Filename -->
-                                                </a>
-                                            </li>
+                                        {% for file in contract[9] %}
+                                            {% if file[0]|int is number %}  <!-- ✅ Ensure file_id is an integer -->
+                                                <li>
+                                                    <a href="{{ url_for('download_contract_file', file_id=file[0]) }}" target="_blank">
+                                                        {{ file[1].split('/')[-1] if '/' in file[1] else file[1].split('\\')[-1] }}
+                                                    </a>
+                                                </li>
+                                            {% else %}
+                                                <li>⚠️ Invalid file ID: {{ file[0] }}</li>
+                                            {% endif %}
                                         {% endfor %}
                                     </ul>
                                 {% else %}
@@ -134,36 +140,5 @@
 <a href="{{ request.referrer or url_for('home') }}" class="btn btn-secondary mt-3">
     <i class="fas fa-arrow-left"></i> Back
 </a>
-
-<!-- JavaScript to Fetch and Display Contract Files Dynamically in the Modal -->
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".edit-contract-btn").forEach(button => {
-        button.addEventListener("click", function () {
-            let contractId = this.getAttribute("data-contract-id");
-            let modal = document.querySelector(`#contractModal${contractId}`);
-            let filesContainer = modal.querySelector(".contract-files-list"); 
-
-            fetch(`/edit-contract/${contractId}`)
-                .then(response => response.json())
-                .then(data => {
-                    filesContainer.innerHTML = "";  
-
-                    if (data.contract_files.length > 0) {
-                        data.contract_files.forEach(file => {
-                            let fileElement = `
-                                <li>
-                                    <a href="/download-contract-file/${file.file_id}" target="_blank">${file.file_name}</a>
-                                </li>`;
-                            filesContainer.innerHTML += fileElement;
-                        });
-                    } else {
-                        filesContainer.innerHTML = "<li>No previously uploaded files.</li>";
-                    }
-                });
-        });
-    });
-});
-</script>
 
 {% endblock %}

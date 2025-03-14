@@ -635,13 +635,10 @@ def view_contracts():
     cur.execute("SELECT supplier_id, name FROM suppliers ORDER BY name")
     suppliers = cur.fetchall()
 
-    # Debugging output
-    print("DEBUG: Suppliers List:", suppliers)
-
     # Fetch contracts with suppliers
     cur.execute("""
-        SELECT c.contract_id, c.contract_name, s.name AS supplier_name, 
-               c.start_date, c.end_date, c.value, c.payment_frequency
+        SELECT c.contract_id, c.contract_name, s.supplier_id, s.name AS supplier_name, 
+            c.start_date, c.end_date, c.value, c.payment_frequency
         FROM contracts c
         LEFT JOIN suppliers s ON c.supplier_id = s.supplier_id
         ORDER BY c.end_date
@@ -655,22 +652,25 @@ def view_contracts():
         contract_id, file_id, file_path = row
         if contract_id not in contract_files:
             contract_files[contract_id] = []
+        # ✅ Ensure file_id is an integer before storing it
+        try:
+            file_id = int(file_id)  # Convert to int if it's not
+        except ValueError:
+            print(f"❌ ERROR: Invalid file_id found: {file_id} (Skipping)")
+            continue  # Skip invalid file_id values
+
         contract_files[contract_id].append((file_id, file_path))
 
     # Process contracts for display
     updated_contracts = []
     for contract in contracts:
-        contract_id, contract_name, supplier_name, start_date, end_date, value, payment_frequency = contract
+        contract_id, contract_name, supplier_id, supplier_name, start_date, end_date, value, payment_frequency = contract
 
-        from datetime import datetime, date
-
-        # Ensure start_date and end_date are formatted correctly before passing to Jinja
+        # Ensure start_date and end_date are formatted correctly
         if isinstance(start_date, date):
             start_date = start_date.strftime("%d/%m/%Y")  # Convert to string
         if isinstance(end_date, date):
             end_date = end_date.strftime("%d/%m/%Y")  # Convert to string
-
-
 
         # Calculate installment amount
         try:
@@ -695,8 +695,9 @@ def view_contracts():
         # Attach contract files (if available)
         files = contract_files.get(contract_id, [])
 
+        # ✅ Include supplier_id so the template can preselect the correct supplier
         updated_contracts.append(
-            (contract_id, contract_name, supplier_name, start_date, end_date, value, installment_amount, payment_frequency, files)
+            (contract_id, contract_name, supplier_id, supplier_name, start_date, end_date, value, installment_amount, payment_frequency, files)
         )
 
     cur.close()
@@ -704,11 +705,7 @@ def view_contracts():
 
     print(f"✅ DEBUG: Final contract data sent to template: {updated_contracts}")
 
-
     return render_template('contracts.html', contracts=updated_contracts, suppliers=suppliers)
-
-
-
 
 # 📌 Upload Contract Files (Multiple Files)
 @app.route('/upload-contract-files/<int:contract_id>', methods=['POST'])
