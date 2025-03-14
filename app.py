@@ -851,6 +851,9 @@ def download_contract_file(file_id):
 
     return send_file(file[0], as_attachment=True)
 
+@app.route('/coming-soon')
+def coming_soon():
+    return render_template('coming_soon.html')
 
 # Run the Flask App
 if __name__ == '__main__':
