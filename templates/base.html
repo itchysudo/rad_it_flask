@@ -6,7 +6,7 @@
     <title>{% block title %}RAD IT{% endblock %}</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">    
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -63,6 +63,25 @@
 {% endwith %}
 
     </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".edit-contract-btn").forEach(button => {
+                button.addEventListener("click", function () {
+                    let contractId = this.getAttribute("data-contract-id");
+        
+                    fetch(`/edit-contract/${contractId}`)
+                        .then(response => response.text())
+                        .then(html => {
+                            let parser = new DOMParser();
+                            let newModalContent = parser.parseFromString(html, "text/html").querySelector(".modal-content");
+        
+                            document.querySelector(`#contractModal${contractId} .modal-content`).innerHTML = newModalContent.innerHTML;
+                        });
+                });
+            });
+        });
+        </script>
+        
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

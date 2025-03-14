@@ -36,9 +36,17 @@
                 <td>£{{ "%.2f"|format(contract[6]|float) }}</td>
                 <td>{{ contract[7] }}</td>
                 <td>
-                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#contractModal{{ contract[0] }}">
+                    <button class="btn btn-sm btn-primary edit-contract-btn" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#contractModal{{ contract[0] }}"
+                        data-contract-id="{{ contract[0] }}">
                         <i class="fas fa-eye"></i>
                     </button>
+
+                    <a href="{{ url_for('edit_contract', contract_id=contract[0]) }}" class="btn btn-sm btn-warning">
+                        <i class="fas fa-edit"></i> <!-- ✏️ Edit Icon -->
+                    </a>
+
                     <form action="{{ url_for('delete_contract', contract_id=contract[0]) }}" method="POST" style="display:inline;">
                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?');">
                             <i class="fas fa-trash"></i>
@@ -88,18 +96,20 @@
                             
                                 <p class="mt-2"><strong>Installment Amount:</strong> £{{ "%.2f"|format(contract[6]) }}</p>
                             
-                                <!-- Display Existing Contract Files -->
+                                <!-- ✅ Previously Uploaded Files (ONLY Filenames, No Path) -->
                                 {% if contract[8] %}
-                                <label class="form-label mt-3">Previously Uploaded Files:</label>
-                                <ul>
-                                    {% for file in contract[8] %}
-                                        <li>
-                                            <a href="{{ url_for('download_contract_file', file_id=file[0]) }}" target="_blank">
-                                                {{ file[1].split('/')[-1] }} <!-- Display only filename -->
-                                            </a>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
+                                    <label class="form-label mt-3">Previously Uploaded Files:</label>
+                                    <ul>
+                                        {% for file in contract[8] %}
+                                            <li>
+                                                <a href="{{ url_for('download_contract_file', file_id=file[0]) }}" target="_blank">
+                                                    {{ file[1].split('/')[-1] if '/' in file[1] else file[1].split('\\')[-1] }} <!-- Show Only Filename -->
+                                                </a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p>No previously uploaded files.</p>
                                 {% endif %}
 
                                 <!-- File Upload Input -->
@@ -115,6 +125,7 @@
                     </div>
                 </div>
             </div>
+
             {% endfor %}
         </tbody>
     </table>
@@ -123,5 +134,36 @@
 <a href="{{ request.referrer or url_for('home') }}" class="btn btn-secondary mt-3">
     <i class="fas fa-arrow-left"></i> Back
 </a>
+
+<!-- JavaScript to Fetch and Display Contract Files Dynamically in the Modal -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".edit-contract-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            let contractId = this.getAttribute("data-contract-id");
+            let modal = document.querySelector(`#contractModal${contractId}`);
+            let filesContainer = modal.querySelector(".contract-files-list"); 
+
+            fetch(`/edit-contract/${contractId}`)
+                .then(response => response.json())
+                .then(data => {
+                    filesContainer.innerHTML = "";  
+
+                    if (data.contract_files.length > 0) {
+                        data.contract_files.forEach(file => {
+                            let fileElement = `
+                                <li>
+                                    <a href="/download-contract-file/${file.file_id}" target="_blank">${file.file_name}</a>
+                                </li>`;
+                            filesContainer.innerHTML += fileElement;
+                        });
+                    } else {
+                        filesContainer.innerHTML = "<li>No previously uploaded files.</li>";
+                    }
+                });
+        });
+    });
+});
+</script>
 
 {% endblock %}

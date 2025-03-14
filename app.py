@@ -12,6 +12,7 @@ load_dotenv()
 app = Flask(__name__, template_folder="templates")
 app.secret_key = "buVJyxLGE2GRjV"
 
+
 # File Upload Configurations
 UPLOAD_FOLDER = r"C:\projects\rad_it_flask\uploads\contracts"
 ALLOWED_EXTENSIONS = {"pdf", "docx", "txt"}
@@ -450,7 +451,47 @@ def edit_contract(contract_id):
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Fetch contract details
+    if request.method == 'POST':
+        print("✅ Received POST request to update contract!")
+        print("📝 Form Data:", request.form)
+
+        # Extract form data
+        contract_name = request.form.get("contract_name")
+        supplier_id = request.form.get("supplier_id")
+        start_date = request.form.get("start_date")
+        end_date = request.form.get("end_date")
+        value = request.form.get("value")
+        payment_frequency = request.form.get("payment_frequency")
+
+        print(f"🔍 DEBUG: Received values - Name: {contract_name}, Supplier ID: {supplier_id}, Start Date: {start_date}, End Date: {end_date}, Value: {value}, Frequency: {payment_frequency}")
+
+        # ✅ Ensure all required fields exist before updating
+        if not all([contract_name, supplier_id, start_date, end_date, value, payment_frequency]):
+            flash("⚠️ Missing required fields!", "warning")
+            print("❌ ERROR: Some required fields are missing.")
+            return redirect(url_for('edit_contract', contract_id=contract_id))
+
+        try:
+            # ✅ Update contract in database
+            cur.execute("""
+                UPDATE contracts
+                SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, value = %s, payment_frequency = %s
+                WHERE contract_id = %s
+            """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, contract_id))
+
+            conn.commit()
+            print("✅ Contract updated successfully!")
+            flash("✅ Contract updated successfully!", "success")
+
+        except Exception as e:
+            conn.rollback()
+            print("❌ ERROR updating contract:", str(e))
+            flash("⚠️ Error updating contract!", "danger")
+
+        # ✅ Redirect back to view contracts after update
+        return redirect(url_for('view_contracts'))
+
+    # Fetch contract details for GET requests
     cur.execute("""
         SELECT contract_id, contract_name, supplier_id, start_date, end_date, value, payment_frequency 
         FROM contracts WHERE contract_id = %s
@@ -471,82 +512,22 @@ def edit_contract(contract_id):
         "payment_frequency": contract_row[6]
     }
 
-    cur.execute("SELECT supplier_id, name FROM suppliers ORDER BY name")
-    suppliers = cur.fetchall()
+    # Fetch contract files
+    cur.execute("SELECT file_id, file_path FROM contract_files WHERE contract_id = %s", (contract_id,))
+    contract_files = [(row[0], row[1].split('/')[-1]) for row in cur.fetchall()]  # Only store file ID & name
 
-    if request.method == 'POST':
-        contract_name = request.form.get('contract_name', '')
-        supplier_id = request.form.get('supplier_id', '0')
+    # ✅ Fetch all suppliers
+    cur.execute("SELECT supplier_id, name FROM suppliers")
+    suppliers = cur.fetchall()  # Get all suppliers from DB
 
-        # Ensure supplier_id is an integer
-        try:
-            supplier_id = int(supplier_id) if supplier_id.isdigit() else None
-        except ValueError:
-            supplier_id = None
-
-        start_date = request.form.get('start_date', '')
-        end_date = request.form.get('end_date', '')
-        value = request.form.get('value', '0')
-        payment_frequency = request.form.get('payment_frequency', 'One-time')
-
-        print(f"\n🔵 DEBUG: Updating Contract {contract_id}")
-        print(f"Start Date: {start_date}, End Date: {end_date}")
-
-        cur.execute("""
-            UPDATE contracts 
-            SET contract_name = %s, supplier_id = %s, start_date = %s, end_date = %s, 
-                value = %s, payment_frequency = %s
-            WHERE contract_id = %s
-        """, (contract_name, supplier_id, start_date, end_date, value, payment_frequency, contract_id))
-        conn.commit()
-
-        # ✅ Debugging: Show available files in the request
-        print(f"🔍 DEBUG: Request.files keys: {request.files.keys()}")
-
-        # ✅ Handle File Upload - Now Using 'contract_files'
-        if 'contract_files' in request.files:
-            file = request.files['contract_files']
-
-            if file and file.filename.strip():  # Check if a file was actually uploaded
-                print(f"🔵 DEBUG: Received file - {file.filename}")
-
-                if allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-                    try:
-                        if not os.path.exists(app.config['UPLOAD_FOLDER']):
-                            print(f"⚠️ Upload folder {app.config['UPLOAD_FOLDER']} does NOT exist. Creating it now...")
-                            os.makedirs(app.config['UPLOAD_FOLDER'])
-
-                        print(f"📂 Saving file to: {file_path}")
-                        file.save(file_path)  # Save file to upload folder
-                        print(f"✅ File successfully uploaded: {file_path}")
-
-                        # ✅ Insert file into database
-                        cur.execute("INSERT INTO contract_files (contract_id, file_path) VALUES (%s, %s)", (contract_id, file_path))
-                        conn.commit()
-                        print("✅ Database entry created for uploaded file.")
-
-                    except Exception as e:
-                        print(f"❌ ERROR: Could not save file {filename}: {e}")
-
-                else:
-                    print(f"❌ ERROR: File type not allowed ({file.filename})")
-
-            else:
-                print("❌ No valid file received!")
-
-        cur.close()
-        conn.close()
-
-        flash("✅ Contract updated successfully!", "success")
-        return redirect(url_for('view_contracts'))
+    print(f"🔍 DEBUG: Contract Files Retrieved for Contract {contract_id}: {contract_files}")
+    print(f"🔍 DEBUG: Suppliers Retrieved: {suppliers}")  # Debugging suppliers
 
     cur.close()
     conn.close()
 
-    return render_template('edit_contract.html', contract=contract, suppliers=suppliers)
+    return render_template('edit_contract.html', contract=contract, contract_files=contract_files, suppliers=suppliers)
+
 
 
 @app.route('/add-contract', methods=['GET', 'POST'])
@@ -802,35 +783,57 @@ def delete_contract_file(file_id):
     """Delete a specific contract file from the system and database."""
     conn = get_db_connection()
     cur = conn.cursor()
+    contract_id = None  # Initialize contract_id to avoid errors
 
-    # Fetch file path and contract_id before deletion
-    cur.execute("SELECT file_path, contract_id FROM contract_files WHERE file_id = %s", (file_id,))
-    file = cur.fetchone()
+    try:
+        # Fetch file path and contract_id before deletion
+        cur.execute("SELECT file_path, contract_id FROM contract_files WHERE file_id = %s", (file_id,))
+        file = cur.fetchone()
 
-    if file:
+        if not file:
+            flash("⚠️ File not found in the database.", "warning")
+            print(f"⚠️ DEBUG: File ID {file_id} not found in contract_files table.")
+            return redirect(url_for('view_contracts'))
+
         file_path, contract_id = file
 
-        # Delete from system
-        try:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                print(f"✅ Deleted file from system: {file_path}")
-            else:
-                print(f"⚠️ File {file_path} not found on system.")
-        except Exception as e:
-            print(f"❌ ERROR: Could not delete file {file_path}: {e}")
+        # ✅ Ensure contract_id exists before using it
+        if not contract_id:
+            flash("⚠️ Contract ID not found. Redirecting to contracts page.", "warning")
+            print(f"⚠️ DEBUG: Contract ID for File ID {file_id} is missing.")
+            return redirect(url_for('view_contracts'))
 
-        # Remove from database
+        # ✅ Check if file_path exists before attempting deletion
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                print(f"✅ DEBUG: Successfully deleted file: {file_path}")
+            except Exception as e:
+                flash(f"❌ Error deleting file: {str(e)}", "danger")
+                print(f"❌ ERROR: Could not delete file {file_path}: {e}")
+        else:
+            flash("⚠️ File not found on the system. Removing from database.", "warning")
+            print(f"⚠️ DEBUG: File {file_path} does not exist on the system.")
+
+        # ✅ Remove from database
         cur.execute("DELETE FROM contract_files WHERE file_id = %s", (file_id,))
         conn.commit()
+        print(f"✅ DEBUG: File entry removed from database for File ID {file_id}.")
 
-    cur.close()
-    conn.close()
+        flash("✅ File deleted successfully!", "success")
 
-    flash("✅ File deleted successfully!", "success")
+    except Exception as e:
+        flash(f"❌ Database error: {str(e)}", "danger")
+        print(f"❌ ERROR: Database operation failed - {e}")
 
-    # Redirect back to Edit Contract page
-    return redirect(url_for('edit_contract', contract_id=contract_id))
+    finally:
+        cur.close()
+        conn.close()
+
+    # ✅ Redirect back to Edit Contract page if contract_id exists, else fallback to contracts page
+    return redirect(url_for('edit_contract', contract_id=contract_id)) if contract_id else redirect(url_for('view_contracts'))
+
+
 
 
 # 📌 Download Contract File
@@ -855,4 +858,4 @@ def download_contract_file(file_id):
 # Run the Flask App
 if __name__ == '__main__':
     print("Running Flask App...")
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -57,14 +57,14 @@
             <input type="file" class="form-control" name="contract_file" multiple>
         </div>
 
-        <!-- 🗂️ Display Previously Uploaded Files with Delete Button -->
+        <!-- 🗂️ Display Previously Uploaded Files with Delete Button (Only Filenames) -->
         {% if contract_files %}
             <h5>Previously Uploaded Files:</h5>
             <ul class="list-group">
                 {% for file in contract_files %}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <a href="{{ url_for('download_contract_file', file_id=file[0]) }}" target="_blank">
-                            {{ file[1].split('/')[-1] }} <!-- Show only the file name -->
+                            {{ file[1].replace('\\', '/').split('/')[-1] }} <!-- Handles both Windows and Unix paths -->
                         </a>
                         <form action="{{ url_for('delete_contract_file', file_id=file[0]) }}" method="POST" class="d-inline">
                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this file?');">
@@ -82,4 +82,20 @@
         <a href="{{ url_for('view_contracts') }}" class="btn btn-secondary mt-3">Close</a>
     </form>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelector("form").addEventListener("submit", function (event) {
+            console.log("✅ Save Changes button clicked - Form submission attempt!");
+
+            // Ensure the form submits properly
+            setTimeout(() => {
+                this.submit();  // 🚀 Ensure form submits
+                console.log("🚀 Form submission triggered via JavaScript!");
+            }, 100);  // Small delay to ensure event propagates
+        });
+    });
+</script>
+
+    
 {% endblock %}
