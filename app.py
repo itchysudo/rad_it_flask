@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_bcrypt import Bcrypt
+
 
 # Load environment variables
 load_dotenv()
@@ -35,7 +38,91 @@ def get_db_connection():
         print(f"❌ ERROR: Failed to connect to the database - {e}")
         return None
     
+app.config['SECRET_KEY'] = 'SECRET_KEY'
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"  # Redirect to login if not authenticated
+bcrypt = Bcrypt(app)
+
+class User(UserMixin):
+    def __init__(self, user_id, username, password_hash):
+        self.id = user_id
+        self.username = username
+        self.password_hash = password_hash
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT user_id, username, password_hash FROM users WHERE user_id = %s", (user_id,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if user:
+        return User(user[0], user[1], user[2])
+    return None
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check if username already exists
+        cur.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+        existing_user = cur.fetchone()
+        if existing_user:
+            flash("⚠️ Username already taken!", "danger")
+            return redirect(url_for('register'))
+
+        # Hash password and store in database
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        cur.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)", (username, hashed_password))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        flash("✅ Registration successful! Please log in.", "success")
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT user_id, username, password_hash FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if user and bcrypt.check_password_hash(user[2], password):
+            user_obj = User(user[0], user[1], user[2])
+            login_user(user_obj)
+            flash("✅ Login successful!", "success")
+            return redirect(url_for('home'))
+        else:
+            flash("❌ Invalid credentials, please try again.", "danger")
+
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash("✅ You have been logged out.", "info")
+    return redirect(url_for('login'))
+    
 @app.route('/')
+@login_required
 def home():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -65,6 +152,7 @@ def home():
     )
 
 @app.route('/suppliers')
+@login_required
 def view_suppliers():
     """View all suppliers."""
     conn = get_db_connection()
@@ -690,6 +778,7 @@ def download_contract(contract_id):
 from datetime import datetime, date  # Ensure 'date' is imported
 
 @app.route('/contracts')
+@login_required
 def view_contracts():
     conn = get_db_connection()
     cur = conn.cursor()
